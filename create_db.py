@@ -13,29 +13,29 @@ import sqlite3
 import sys
 
 commands = (
+    # Each site belongs to one and only one domain
+    # site -> domain
     "CREATE TABLE site2domain(\
         site INTEGER PRIMARY KEY ASC,\
         domain INTEGER\
     );",
-    # site -> domain
+    # session_id -> day, user
     "CREATE TABLE session(\
         session_id INTEGER PRIMARY KEY ASC,\
         day INTEGER,\
         user INTEGER\
     );",
-    # session_id -> day, user
-    "CREATE TABLE search(\
+
+    # SERP = Search Engine Result Page
+    # Contains the data of a every SERP
+    # We need to store the sites because the SERP for a query can vary.
+    # session_id, serp -> time_passed, query_type, query_id, site0-9
+    "CREATE TABLE serp(\
         session_id INTEGER,\
         serp INTEGER,\
         time_passed INTEGER,\
-        query_id INTEGER,\
         query_type TEXT,\
-        PRIMARY KEY(session_id, serp)\
-    );",
-    # session_id, serp -> time_passed, query_id, query_type
-    "CREATE TABLE query(\
-        query_id INTEGER ASC,\
-        query TEXT,\
+        query_id INTEGER,\
         site0 INTEGER,\
         site1 INTEGER,\
         site2 INTEGER,\
@@ -46,16 +46,21 @@ commands = (
         site7 INTEGER,\
         site8 INTEGER,\
         site9 INTEGER,\
+        PRIMARY KEY(session_id, serp)\
+    );",
+    # query_id -> query text
+    "CREATE TABLE query(\
+        query_id INTEGER,\
+        query TEXT,\
         PRIMARY KEY(query_id)\
     );",
-    # query_id -> query, site[0-9]
+    # session_id, serp, time_passed -> site
     "CREATE TABLE click(\
         session_id INTEGER ASC,\
         serp INTEGER ASC,\
         time_passed INTEGER,\
         site INTEGER\
     );"
-    # session_id, serp -> time_passed, site
 )
 
 
