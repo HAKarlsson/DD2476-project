@@ -1,0 +1,9 @@
+# database files
+*.db
+*.db-journal
+
+# Python
+*.pyc
+
+# directories
+dataset

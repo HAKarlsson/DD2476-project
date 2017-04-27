@@ -1,0 +1,12 @@
+create view query_results as
+select query_id, site from
+(select query_id, site0 as site from query UNION
+select query_id, site1 as site from query UNION
+select query_id, site2 as site from query UNION
+select query_id, site3 as site from query UNION
+select query_id, site4 as site from query UNION
+select query_id, site5 as site from query UNION
+select query_id, site6 as site from query UNION
+select query_id, site7 as site from query UNION
+select query_id, site8 as site from query UNION
+select query_id, site9 as site from query);
