@@ -2,6 +2,10 @@
 
 Yandex Personalized Web Search Challange: https://www.kaggle.com/c/yandex-personalized-web-search-challenge
 
+## How to use
+
+Download the train&test data and put them in the dataset folder.
+
 ## Database schema:
 
 1. site2domain(site, domain)
