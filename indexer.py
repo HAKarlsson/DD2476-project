@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 ##
+# Author: Henrik Karlsson
+#
 # INSTRUCTION FOR *LINUX*
 #
 # ./indexer.py DATASET DATABASE

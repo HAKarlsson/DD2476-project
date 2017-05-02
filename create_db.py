@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 ##
+# Author: Henrik Karlsson
+#
 # INSTRUCTION FOR *LINUX*
 #
 # ./create_db.py DATABASE_LOCATION
