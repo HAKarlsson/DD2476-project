@@ -77,7 +77,7 @@ for i, command in enumerate(commands):
     print("executing command", i)
     # remove redundant whitespaces, for when viewing sql schema
     command = ' '.join(command.split())
-    command = command.replace('( ','(').replace(' )',')')
+    command = command.replace('( ', '(').replace(' )', ')')
     c.execute(command)
 
 conn.commit()

@@ -52,10 +52,12 @@ c.execute('PRAGMA synchronous = OFF')
 def insertAll():
     global to_sessions, to_site2domain, to_query, to_click, to_serp
     c.executemany("INSERT INTO session VALUES (?,?,?)", to_sessions)
-    c.executemany("INSERT OR IGNORE INTO site2domain VALUES (?,?)", to_site2domain)
+    c.executemany(
+        "INSERT OR IGNORE INTO site2domain VALUES (?,?)", to_site2domain)
     c.executemany("INSERT OR IGNORE INTO query VALUES (?,?)", to_query)
     c.executemany("INSERT INTO click VALUES (?,?,?,?)", to_click)
-    c.executemany("INSERT INTO serp VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", to_serp)
+    c.executemany(
+        "INSERT INTO serp VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", to_serp)
     conn.commit()
     to_sessions = []
     to_site2domain = []
@@ -88,8 +90,8 @@ with open(data) as f:
                 to_site2domain.append((site, domain))
                 sites.append(int(site))
             to_serp.append((session_id, serp, time_passed, query_type, query_id,
-                sites[0], sites[1], sites[2], sites[3], sites[4],
-                sites[5], sites[6], sites[7], sites[8], sites[9]))
+                            sites[0], sites[1], sites[2], sites[3], sites[4],
+                            sites[5], sites[6], sites[7], sites[8], sites[9]))
         elif line[2] == 'C':
             time_passed = line[1]
             serp = line[3]
@@ -101,7 +103,8 @@ with open(data) as f:
             elapsed = time.time() - start
             telapsed = time.time() - tstart
             start = time.time()
-            print("Indexed: %d lines, total time: %.2f, time: %.2f" % (i, telapsed, elapsed))
+            print("Indexed: %d lines, total time: %.2f, time: %.2f" %
+                  (i, telapsed, elapsed))
 insertAll()
 conn.close()
 
