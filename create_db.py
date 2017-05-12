@@ -15,54 +15,70 @@ import sqlite3
 import sys
 
 commands = (
-    # Each site belongs to one and only one domain
-    # site -> domain
-    "CREATE TABLE site2domain(\
-        site INTEGER PRIMARY KEY ASC,\
-        domain INTEGER\
-    );",
-    # session_id -> day, user
-    "CREATE TABLE session(\
-        session_id INTEGER PRIMARY KEY ASC,\
-        day INTEGER,\
-        user INTEGER\
-    );",
-
-    # SERP = Search Engine Result Page
-    # Contains the data of a every SERP
-    # We need to store the sites because the SERP for a query can vary.
-    # session_id, serp -> time_passed, query_type, query_id, site0-9
-    "CREATE TABLE serp(\
-        session_id INTEGER,\
-        serp INTEGER,\
-        time_passed INTEGER,\
-        query_type TEXT,\
-        query_id INTEGER,\
-        site0 INTEGER,\
-        site1 INTEGER,\
-        site2 INTEGER,\
-        site3 INTEGER,\
-        site4 INTEGER,\
-        site5 INTEGER,\
-        site6 INTEGER,\
-        site7 INTEGER,\
-        site8 INTEGER,\
-        site9 INTEGER,\
-        PRIMARY KEY(session_id, serp)\
-    );",
-    # query_id -> query text
-    "CREATE TABLE query(\
-        query_id INTEGER,\
-        query TEXT,\
-        PRIMARY KEY(query_id)\
-    );",
-    # session_id, serp, time_passed -> site
-    "CREATE TABLE click(\
-        session_id INTEGER ASC,\
-        serp INTEGER ASC,\
-        time_passed INTEGER,\
-        site INTEGER\
-    );"
+    """
+    CREATE TABLE `session` (
+      `id` integer,
+      `user` integer,
+      `day` smallint,
+      primary key (id)
+    );
+    """,
+    """
+    CREATE TABLE `query` (
+      `id` integer,
+      `query` text,
+      primary key (id)
+    );
+    """,
+    """
+    CREATE TABLE `sites` (
+      `site` integer,
+      `domain` integer,
+      primary key (site)
+    );
+    """,
+    """
+    CREATE TABLE `serp` (
+      `id` integer,
+      `session_id` integer,
+      `serp` smallint,
+      `time_passed` smallint,
+      `query_id` integer,
+      `is_test` boolean,
+       primary key (id),
+       FOREIGN KEY (session_id) REFERENCES session(id),
+       FOREIGN KEY (query_id) REFERENCES query(id)
+    );
+    """,
+    """
+    CREATE TABLE `serpitem` (
+      `serp_id` integer,
+      `position` smallint,
+      `site` integer,
+      primary key (serp_id, position),
+      FOREIGN KEY (serp_id) REFERENCES serp(id),
+      FOREIGN KEY (site) REFERENCES sites(site)
+    );
+    """,
+    """
+    CREATE TABLE `relevance` (
+      `serp_id` integer,
+      `site` integer,
+      `relevance` integer,
+      FOREIGN KEY (serp_id) REFERENCES serp(id),
+      FOREIGN KEY (site) REFERENCES sites(site)
+    );
+    """,
+    """
+    CREATE TABLE `clicks` (
+      `serp_id` integer,
+      `time_passed` smallint,
+      `site` integer,
+      primary key (serp_id, time_passed),
+      FOREIGN KEY (serp_id) REFERENCES serp(id),
+      FOREIGN KEY (site) REFERENCES sites(site)      
+    );
+    """
 )
 
 
