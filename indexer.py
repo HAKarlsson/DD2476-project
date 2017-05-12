@@ -74,7 +74,7 @@ def insertAll():
 print("\nIndexing %s"% data)
 
 # Find starting point for serp_id
-c.execute("SELECT max(id) FROM serp")
+c.execute("SELECT max(serp_id) FROM serp")
 max_id = c.fetchone()[0]
 if max_id == None:
     serp_id = -1
