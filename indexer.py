@@ -69,7 +69,18 @@ def insertAll():
     to_click = []
     to_serp = []
 
-serp_id = -1
+
+print("\nIndexing %s"% data)
+
+c.execute("SELECT max(id) FROM serp")
+max_id = c.fetchone()[0]
+if max_id == None:
+    serp_id = -1
+else:
+    serp_id = max_id
+print("SERP id starting at %d\n"% (serp_id + 1))
+
+
 time_passed = []
 
 with open(data) as f:
