@@ -17,63 +17,63 @@ import sys
 commands = (
     """
     CREATE TABLE `session` (
-      `id` integer,
-      `user` integer,
-      `day` smallint,
-      primary key (id)
+      `id` INTEGER,
+      `user` INTEGER,
+      `day` INTEGER,
+      PRIMARY KEY (id)
     );
     """,
     """
     CREATE TABLE `query` (
-      `id` integer,
-      `query` text,
-      primary key (id)
+      `id` INTEGER,
+      `query` TEXT,
+      PRIMARY KEY (id)
     );
     """,
     """
     CREATE TABLE `sites` (
-      `site` integer,
-      `domain` integer,
-      primary key (site)
+      `site` INTEGER,
+      `domain` INTEGER,
+      PRIMARY KEY (site)
     );
     """,
     """
     CREATE TABLE `serp` (
-      `id` integer,
-      `session_id` integer,
-      `serp` smallint,
-      `time_passed` smallint,
-      `query_id` integer,
-      `is_test` boolean,
-       primary key (id),
+      `id` INTEGER,
+      `session_id` INTEGER,
+      `serp` INTEGER,
+      `time_passed` INTEGER,
+      `query_id` INTEGER,
+      `is_test` BOOLEAN,
+       PRIMARY KEY (id),
        FOREIGN KEY (session_id) REFERENCES session(id),
        FOREIGN KEY (query_id) REFERENCES query(id)
     );
     """,
     """
     CREATE TABLE `serpitem` (
-      `serp_id` integer,
-      `position` smallint,
-      `site` integer,
-      primary key (serp_id, position),
+      `serp_id` INTEGER,
+      `position` INTEGER,
+      `site` INTEGER,
+      PRIMARY KEY (serp_id, position),
       FOREIGN KEY (serp_id) REFERENCES serp(id),
       FOREIGN KEY (site) REFERENCES sites(site)
     );
     """,
     """
     CREATE TABLE `relevance` (
-      `serp_id` integer,
-      `site` integer,
-      `dwell_time` smallint,
+      `serp_id` INTEGER,
+      `site` INTEGER,
+      `dwell_time` INTEGER,
       FOREIGN KEY (serp_id) REFERENCES serp(id),
       FOREIGN KEY (site) REFERENCES sites(site)
     );
     """,
     """
     CREATE TABLE `clicks` (
-      `serp_id` integer,
-      `time_passed` smallint,
-      `site` integer,
+      `serp_id` INTEGER,
+      `time_passed` INTEGER,
+      `site` INTEGER,
       FOREIGN KEY (serp_id) REFERENCES serp(id),
       FOREIGN KEY (site) REFERENCES sites(site)      
     );

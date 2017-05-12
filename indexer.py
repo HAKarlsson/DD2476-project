@@ -89,7 +89,7 @@ with open(data) as f:
     for line in f:
         i += 1
         line = line.strip().split('\t')
-        session_id = line[0]
+        session_id = int(line[0])
         if line[1] == 'M':
             # New session
             day = line[2]
@@ -97,11 +97,13 @@ with open(data) as f:
             to_sessions.append((session_id, day, user))
             # can we say that each metadata line indicates the start of new session? yes
             
-            for prev, curr in zip(time_passed[:-1],time_passed[1:]):
+            for curr, nex in zip(time_passed[:-1],time_passed[1:]):
                 if curr[2] == 'Q':
                     continue
                 # Create relevance entry
-                dwell_time = int(curr[1]) - int(prev[1])
+                dwell_time = nex[1] - curr[1]
+                if dwell_time < 0:
+                    print("ERROR")
                 to_relevance.append((curr[0], curr[-1], dwell_time))
             time_passed = []
             
@@ -109,7 +111,7 @@ with open(data) as f:
             # New query
             serp_id += 1
             serp = line[3]
-            q_time_passed = line[1]
+            q_time_passed = int(line[1])
             query_id = line[4]
             is_test = (line[2] == 'T')
             query = line[5]
@@ -124,16 +126,13 @@ with open(data) as f:
 
             # Add new sites if they do not exist
             sites = [siteDomain.split(',') for siteDomain in line[6:]]
-            for siteDomain in sites:
+            for pos, siteDomain in enumerate(sites):
                 to_sites.append(siteDomain)
-            
-            # Create new serp item
-            for pos, (site, domain) in enumerate(sites):
-                to_serpitem.append((serp_id, pos, site))
+                to_serpitem.append((serp_id, pos, siteDomain[0]))
             
         elif line[2] == 'C':
             # New click
-            c_time_passed = line[1]
+            c_time_passed = int(line[1])
             site = line[4]
             to_click.append((serp_id, c_time_passed, site))
             time_passed.append((serp_id,c_time_passed, 'C', site))
