@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 ##
-# Author: Henrik Karlsson
+# Author: Henrik Karlsson, Dmytro Kalpakchi
 #
 # INSTRUCTION FOR *LINUX*
 #
@@ -52,6 +52,7 @@ c.execute('PRAGMA synchronous = OFF')
 
 
 def insertAll():
+    # Insert all db entries
     global to_sessions, to_sites, to_query, to_click, to_serp, to_serpitem, to_relevance
     c.executemany("INSERT INTO session VALUES (?,?,?)", to_sessions)
     c.executemany("INSERT OR IGNORE INTO sites VALUES (?,?)", to_sites)
@@ -72,6 +73,7 @@ def insertAll():
 
 print("\nIndexing %s"% data)
 
+# Find starting point for serp_id
 c.execute("SELECT max(id) FROM serp")
 max_id = c.fetchone()[0]
 if max_id == None:
@@ -146,6 +148,8 @@ with open(data) as f:
             start = time.time()
             print("Indexed: %d lines, total time: %.2f, time: %.2f" %
                   (i, telapsed, elapsed))
+
+# Make sure everyting is inserted.
 insertAll()
 conn.close()
 

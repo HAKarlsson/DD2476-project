@@ -64,7 +64,7 @@ commands = (
     CREATE TABLE `relevance` (
       `serp_id` integer,
       `site` integer,
-      `dwell_time` integer,
+      `dwell_time` smallint,
       FOREIGN KEY (serp_id) REFERENCES serp(id),
       FOREIGN KEY (site) REFERENCES sites(site)
     );
