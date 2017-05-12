@@ -17,17 +17,17 @@ import sys
 commands = (
     """
     CREATE TABLE `session` (
-      `id` INTEGER,
+      `session_id` INTEGER,
       `user` INTEGER,
       `day` INTEGER,
-      PRIMARY KEY (id)
+      PRIMARY KEY (session_id)
     );
     """,
     """
     CREATE TABLE `query` (
-      `id` INTEGER,
+      `query_id` INTEGER,
       `query` TEXT,
-      PRIMARY KEY (id)
+      PRIMARY KEY (query_id)
     );
     """,
     """
@@ -39,15 +39,15 @@ commands = (
     """,
     """
     CREATE TABLE `serp` (
-      `id` INTEGER,
+      `serp_id` INTEGER,
       `session_id` INTEGER,
       `serp` INTEGER,
       `time_passed` INTEGER,
       `query_id` INTEGER,
       `is_test` BOOLEAN,
-       PRIMARY KEY (id),
-       FOREIGN KEY (session_id) REFERENCES session(id),
-       FOREIGN KEY (query_id) REFERENCES query(id)
+       PRIMARY KEY (serp_id),
+       FOREIGN KEY (session_id) REFERENCES session(session_id),
+       FOREIGN KEY (query_id) REFERENCES query(query_id)
     );
     """,
     """
@@ -56,7 +56,7 @@ commands = (
       `position` INTEGER,
       `site` INTEGER,
       PRIMARY KEY (serp_id, position),
-      FOREIGN KEY (serp_id) REFERENCES serp(id),
+      FOREIGN KEY (serp_id) REFERENCES serp(serp_id),
       FOREIGN KEY (site) REFERENCES sites(site)
     );
     """,
@@ -65,7 +65,7 @@ commands = (
       `serp_id` INTEGER,
       `site` INTEGER,
       `dwell_time` INTEGER,
-      FOREIGN KEY (serp_id) REFERENCES serp(id),
+      FOREIGN KEY (serp_id) REFERENCES serp(serp_id),
       FOREIGN KEY (site) REFERENCES sites(site)
     );
     """,
@@ -74,7 +74,7 @@ commands = (
       `serp_id` INTEGER,
       `time_passed` INTEGER,
       `site` INTEGER,
-      FOREIGN KEY (serp_id) REFERENCES serp(id),
+      FOREIGN KEY (serp_id) REFERENCES serp(serp_id),
       FOREIGN KEY (site) REFERENCES sites(site)      
     );
     """
