@@ -94,7 +94,7 @@ with open(data) as f:
             # New session
             day = line[2]
             user = line[3]
-            to_sessions.append((session_id, day, user))
+            to_sessions.append((session_id, user, day))
             # can we say that each metadata line indicates the start of new session? yes
             
             for curr, nex in zip(time_passed[:-1],time_passed[1:]):
