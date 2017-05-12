@@ -74,7 +74,6 @@ commands = (
       `serp_id` integer,
       `time_passed` smallint,
       `site` integer,
-      primary key (serp_id, time_passed),
       FOREIGN KEY (serp_id) REFERENCES serp(id),
       FOREIGN KEY (site) REFERENCES sites(site)      
     );
