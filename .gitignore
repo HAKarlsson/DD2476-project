@@ -1,6 +1,7 @@
 # database files
 *.db
 *.db-journal
+*.db.gz
 
 # Python
 *.pyc

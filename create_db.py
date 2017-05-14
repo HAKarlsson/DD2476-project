@@ -31,13 +31,6 @@ commands = (
     );
     """,
     """
-    CREATE TABLE `sites` (
-      `site` INTEGER,
-      `domain` INTEGER,
-      PRIMARY KEY (site)
-    );
-    """,
-    """
     CREATE TABLE `serp` (
       `serp_id` INTEGER,
       `session_id` INTEGER,
@@ -55,27 +48,12 @@ commands = (
       `serp_id` INTEGER,
       `position` INTEGER,
       `site` INTEGER,
+      `domain` INTEGER,
+      `clicks` INTEGER,
+      `relevance` INTEGER,
       PRIMARY KEY (serp_id, position),
       FOREIGN KEY (serp_id) REFERENCES serp(serp_id),
       FOREIGN KEY (site) REFERENCES sites(site)
-    );
-    """,
-    """
-    CREATE TABLE `relevance` (
-      `serp_id` INTEGER,
-      `site` INTEGER,
-      `dwell_time` INTEGER,
-      FOREIGN KEY (serp_id) REFERENCES serp(serp_id),
-      FOREIGN KEY (site) REFERENCES sites(site)
-    );
-    """,
-    """
-    CREATE TABLE `clicks` (
-      `serp_id` INTEGER,
-      `time_passed` INTEGER,
-      `site` INTEGER,
-      FOREIGN KEY (serp_id) REFERENCES serp(serp_id),
-      FOREIGN KEY (site) REFERENCES sites(site)      
     );
     """
 )
