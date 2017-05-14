@@ -65,6 +65,9 @@ print("Indexing ", dataset)
 conn = sqlite3.connect(database)
 cursor = conn.cursor()
 
+cursor.execute("PRAGMA synchronous=OFF")
+cursor.execute("PRAGMA check_foreign_key=False")
+
 print("sqlite3 version:", sqlite3.sqlite_version)
 print("python version:", sys.version)
 
