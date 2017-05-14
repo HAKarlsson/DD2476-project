@@ -1,0 +1,64 @@
+{
+  "mappings": {
+    "session": {
+      "_all": {
+        "enabled": false
+      },
+      "properties": {
+        "user": {
+          "type": "integer"
+        },
+        "day": {
+          "type": "integer"
+        }
+      }
+    },
+    "serp": {
+      "_all": {
+        "enabled": false
+      },
+      "_parent": {
+        "type": "session"
+      },
+      "properties": {
+        "serpId": {
+          "type": "integer"
+        },
+        "timePassed": {
+          "type": "integer"
+        },
+        "query": {
+          "type": "text"
+        },
+        "isTest": {
+          "type": "boolean"
+        }
+      }
+    },
+    "serpitem": {
+      "_all": {
+        "enabled": false
+      },
+      "_parent": {
+        "type": "serp"
+      },
+      "properties": {
+        "position": {
+          "type": "integer"
+        },
+        "site": {
+          "type": "integer"
+        },
+        "domain": {
+          "type": "integer"
+        },
+        "clicks": {
+          "type": "integer"
+        },
+        "relevance": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}
