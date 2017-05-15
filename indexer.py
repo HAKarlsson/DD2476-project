@@ -1,6 +1,5 @@
 import sys
 import time
-import json
 from elasticsearch import Elasticsearch
 from elasticsearch import helpers
 from collections import deque
@@ -23,7 +22,7 @@ def dwell2relevance(dwell_time):
 
 def insert_all():
     # insert all the records into elasticsearch
-    global sessions, serps, serpitems
+    global sessions, serps
     deque(helpers.parallel_bulk(es, sessions+serps, chunk_size=5000), maxlen=0)
     sessions, serps = [], []
 
@@ -82,14 +81,14 @@ with open(dataset) as fp:
                 for site, site_info in clicks_info[serp].items():
                     pos, domain = site_info[0:2]
                     relevance, clicks = site_info[2:]
-                    documents.append({
-                        "position": pos,
+                    documents.append((pos, {
                         "site": site,
                         "domain": domain,
                         "clicks": clicks,
                         "relevance": relevance,
-                    })
-                session_serp[serp]['documents'] = documents
+                    }))
+                documents.sort()
+                session_serp[serp]['documents'] = list(map(itemgetter(1), documents))
             actions = []
             session_serp = []
             clicks_info = dict()

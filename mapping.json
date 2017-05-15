@@ -3,9 +3,10 @@ DELETE yandex
 PUT yandex
 {
   "settings": {
-      "number_of_shards" :   3,
-      "number_of_replicas" : 0,
-      "refresh_interval" : "2s"
+    "index.codec": "best_compression",
+    "number_of_shards": 3,
+    "number_of_replicas": 0,
+    "refresh_interval": "2s"
   },
   "mappings": {
     "session": {
@@ -30,18 +31,21 @@ PUT yandex
       },
       "properties": {
         "serpId": {
-          "type": "integer"
+          "type": "byte",
+          "index": false
         },
         "timePassed": {
-          "type": "integer"
+          "type": "integer",
+          "index": false
         },
         "query": {
-          "type": "text"
+          "type": "text",
+          "index_options": "docs"
         },
         "isTest": {
           "type": "boolean"
         },
-        "serpitems": {
+        "documents": {
           "type": "nested"
         }
       }
