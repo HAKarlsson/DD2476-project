@@ -34,7 +34,7 @@ def dwell2relevance(dwell_time):
         return 2
 
 
-def insert_documents():
+def insert_documents(es):
     global actions, session_serp, clicks_info
     """
         Insert all the documents that has been recorded
@@ -71,7 +71,7 @@ def insert_documents():
     clicks_info = dict()
 
 
-def handle_query(record):
+def handle_query(es, record):
     global session_serp, serps, clicks_info
     """
         Handle a query record
@@ -100,7 +100,7 @@ def handle_query(record):
         clicks_info[serp][int(site)] = [pos, int(domain), 0, 0]
 
 
-def handle_session(record):
+def handle_session(es, record):
     global sessions
     """
         Handle a session record
@@ -116,7 +116,7 @@ def handle_session(record):
     })
 
 
-def handle_click(record):
+def handle_click(es, record):
     global actions, clicks_info
     """
         Handle a click record
@@ -128,7 +128,7 @@ def handle_click(record):
     actions.append((time_passed, 'C', serp, site))
 
 
-def insert_all():
+def insert_all(es):
     global sessions, serps
     # insert all the records into elasticsearch
     deque(helpers.parallel_bulk(es, sessions + serps, chunk_size=5000), maxlen=0)
@@ -148,7 +148,6 @@ def read_file(file_path):
     start_time = time.time()
     lines_read = 0
     lines_in_record = 0
-    global es
     es = Elasticsearch(timeout=3600)
 
     with open(file_path) as f:
@@ -159,28 +158,28 @@ def read_file(file_path):
 
             if record[1] == 'M':
                 # Handle old session
-                insert_documents()
+                insert_documents(es)
                 # insert all if we have enough records
                 if lines_in_record > 10000:
-                    insert_all()
+                    insert_all(es)
                     log_info(start_time, lines_read, file_path)
                     lines_in_record = 0
 
                 # new session
-                handle_session(record)
+                handle_session(es, record)
 
             elif record[2] == 'Q' or record[2] == 'T':
                 # new query
-                handle_query(record)
+                handle_query(es, record)
 
             elif record[2] == 'C':
                 # new click
-                handle_click(record)
+                handle_click(es, record)
 
             lines_read += 1
             lines_in_record += 1
-    insert_documents()
-    insert_all()
+    insert_documents(es)
+    insert_all(es)
     log_info(start_time, lines_read)
     print("%s > DONE! Indexed %d lines" % (file_path, lines_read))
 
@@ -189,10 +188,10 @@ def read_file(file_path):
 
 print("python version:", sys.version)
 
-es = Elasticsearch(timeout=3600)
+es = Elasticsearch(timeout=3600, maxsize=30)
 
 path = sys.argv[1]  # Get the dataset location
-es_index = 'yandexFixe'   # set the elasticsearch index
+es_index = 'yandex'   # set the elasticsearch index
 
 with open('mapping.json') as f:
     if es.indices.exists(index=es_index):
