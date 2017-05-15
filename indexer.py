@@ -194,7 +194,6 @@ clicks_info = dict()
 
 
 if isfile(path):
-    print('ok we failed')
     read_file(path)
 else:
     jobs = []
