@@ -35,6 +35,41 @@ def log_info():
     print("Indexed %d lines, %d lps" % (lines_read, lps))
 
 
+def insert_documents():
+    global actions, session_serp, clicks_info
+    for cur, nex in zip(actions[:-1], actions[1:]):
+        if cur[1] == 'Q':
+            continue
+        dwell_time = nex[0] - cur[0]
+        if dwell_time < 0:
+            print("Negative dwell time")
+
+        # handling multiple clicks on the same link
+        serp, site = cur[2], cur[3]
+        new_relevance = dwell2relevance(dwell_time)
+        cur_relevance = clicks_info[serp][site][2]
+        if new_relevance > cur_relevance:
+            clicks_info[serp][site][2] = new_relevance
+
+    for serp in clicks_info.keys():
+        documents = []
+        for site, site_info in clicks_info[serp].items():
+            pos, domain = site_info[0:2]
+            relevance, clicks = site_info[2:]
+            documents.append((pos, {
+                "site": site,
+                "domain": domain,
+                "clicks": clicks,
+                "relevance": relevance,
+            }))
+        documents.sort()
+        session_serp[serp]['documents'] = list(map(itemgetter(1), documents))
+
+    actions, session_serp = [], []
+    clicks_info = dict()
+
+
+
 start_time = time.time()
 
 # Get program arguments
@@ -62,37 +97,7 @@ with open(dataset) as fp:
         record = line.strip().split('\t')
         if record[1] == 'M':
 
-            for cur, nex in zip(actions[:-1], actions[1:]):
-                if cur[1] == 'Q':
-                    continue
-                dwell_time = nex[0] - cur[0]
-                if dwell_time < 0:
-                    print("Negative dwell time")
-
-                # handling multiple clicks on the same link
-                serp, site = cur[2], cur[3]
-                new_relevance = dwell2relevance(dwell_time)
-                cur_relevance = clicks_info[serp][site][2]
-                if new_relevance > cur_relevance:
-                    clicks_info[serp][site][2] = new_relevance
-
-            for serp in clicks_info.keys():
-                documents = []
-                for site, site_info in clicks_info[serp].items():
-                    pos, domain = site_info[0:2]
-                    relevance, clicks = site_info[2:]
-                    documents.append((pos, {
-                        "site": site,
-                        "domain": domain,
-                        "clicks": clicks,
-                        "relevance": relevance,
-                    }))
-                documents.sort()
-                session_serp[serp]['documents'] = list(map(itemgetter(1), documents))
-            actions = []
-            session_serp = []
-            clicks_info = dict()
-
+            insert_documents()
             # new session
             if lines_in_record > 10000:
                 insert_all()
@@ -145,7 +150,7 @@ with open(dataset) as fp:
 
         lines_in_record += 1
 
-
+insert_documents()
 insert_all()
 log_info()
 print("DONE! Indexed %d lines" % (lines_read))
