@@ -1,4 +1,12 @@
+DELETE yandex
+
+PUT yandex
 {
+  "settings": {
+      "number_of_shards" :   3,
+      "number_of_replicas" : 0,
+      "refresh_interval" : "2s"
+  },
   "mappings": {
     "session": {
       "_all": {
@@ -32,31 +40,9 @@
         },
         "isTest": {
           "type": "boolean"
-        }
-      }
-    },
-    "serpitem": {
-      "_all": {
-        "enabled": false
-      },
-      "_parent": {
-        "type": "serp"
-      },
-      "properties": {
-        "position": {
-          "type": "integer"
         },
-        "site": {
-          "type": "integer"
-        },
-        "domain": {
-          "type": "integer"
-        },
-        "clicks": {
-          "type": "integer"
-        },
-        "relevance": {
-          "type": "integer"
+        "serpitems": {
+          "type": "nested"
         }
       }
     }
