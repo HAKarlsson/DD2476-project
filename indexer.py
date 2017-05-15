@@ -1,3 +1,7 @@
+##
+# Authors: Martin Hwasser, Dmytro Kalpakchi, Henrik Karlsson
+##
+
 import sys
 import time
 from elasticsearch import Elasticsearch
