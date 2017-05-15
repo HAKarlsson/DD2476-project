@@ -10,3 +10,14 @@ Yandex Personalized Web Search Challange: https://www.kaggle.com/c/yandex-person
 ### Elasticsearch schema: 
 See `mapping.json`
 
+### Elasticsearch LTR Plugin:
+
+Installing the plugin:
+```
+./bin/elasticsearch-plugin install http://es-learn-to-rank.labs.o19s.com/ltr-query-0.1.1-es5.4.0.zip
+```
+
+Add lines in `elasticsearch.yml` to avoid error:
+```
+script.max_size_in_bytes: 5000000
+```
