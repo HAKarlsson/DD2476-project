@@ -1,9 +1,13 @@
 #
 #	Splits the training data into four parts.
 #	dataset/train -> dataset/train[0-3]
+import os
 
 file_num = 0
-writeFile = open('dataset/train%d'%file_num, 'w')
+path = 'dataset/train_parts/train%d' 
+if not os.path.exists(os.path.dirname(path)):
+	os.makedirs(os.path.dirname(path))
+writeFile = open(path % file_num, 'w')
 lines_read = 0
 lines_in_file = 0
 with open('dataset/train') as fp:

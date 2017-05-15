@@ -3,21 +3,22 @@
 #
 #
 # Call with:
-#   python3[.6] indexer.py [parameters]
-#     --dataset: the dataset that should be indexed
-#     --del: delete the index
-#     --new: create a new index
-#     --redo: delete an old index and create a new index
-#   Example: python3 indexer.py --new --dataset dataset/test
+#   python3[.6] indexer.py [dataset location]
+#   Example:
+#       python3 indexer.py dataset/test
+#       python3 indexer.py dataset
 ##
 
 import sys
 import time
 import json
-from elasticsearch import Elasticsearch, ElasticsearchException
+from os import listdir
+from os.path import isfile, join
+from elasticsearch import Elasticsearch
 from elasticsearch import helpers
 from collections import deque
 from operator import itemgetter
+from multiprocessing import Process
 
 
 #### DEFINING FUNCTIONS ####
@@ -134,113 +135,86 @@ def insert_all():
     sessions, serps = [], []
 
 
-def log_info():
+def log_info(start_time, lines_read, file_path):
     # print indexing information
     elapsed = time.time() - start_time
     # lines per second
     lps = lines_read / elapsed
-    print("Indexed %d lines, %d lps" % (lines_read, lps))
+    print("%s > Indexed %d lines, %d lps" % (file_path, lines_read, lps))
+
+
+def read_file(file_path):
+    print("Indexing ", file_path)
+    start_time = time.time()
+    lines_read = 0
+    lines_in_record = 0
+    global es
+    es = Elasticsearch(timeout=3600)
+
+    with open(file_path) as f:
+        for line in f:
+
+            # process the line
+            record = line.strip().split('\t')
+
+            if record[1] == 'M':
+                # Handle old session
+                insert_documents()
+                # insert all if we have enough records
+                if lines_in_record > 10000:
+                    insert_all()
+                    log_info(start_time, lines_read, file_path)
+                    lines_in_record = 0
+
+                # new session
+                handle_session(record)
+
+            elif record[2] == 'Q' or record[2] == 'T':
+                # new query
+                handle_query(record)
+
+            elif record[2] == 'C':
+                # new click
+                handle_click(record)
+
+            lines_read += 1
+            lines_in_record += 1
+    insert_documents()
+    insert_all()
+    log_info(start_time, lines_read)
+    print("%s > DONE! Indexed %d lines" % (file_path, lines_read))
 
 
 #### PROGRAM START ####
 
-es = Elasticsearch(timeout=3600)
-es_index = 'yandex'   # set the elasticsearch index
-start_time = time.time()
-
-"""
-   Process program arguments
-"""
-found_dataset = False
-del_index = False
-new_index = False
-args = sys.argv[1:]
-i = 0
-while i < len(args):
-    arg = args[i]
-    if (arg == '--dataset' or arg == '--data'):
-        if len(args) <= (i + 1):
-            print('Add path to dataset after', arg)
-            sys.exit(-1)
-        dataset = args[i+1]
-        i+=1
-        found_dataset = True
-    elif arg == '--del':
-        del_index = True
-    elif arg == '--new':
-        new_index = True
-    elif arg == '--redo':
-        del_index = True
-        new_index = True
-    else:
-        print("Unknown parameter: ", args[i])
-        sys.exit(-1)
-    i+=1
-
-
-if del_index:
-    es.indices.delete(index=es_index)
-    print("index %s deleted" % es_index)
-    if not new_index:
-        sys.exit(-1)
-
-if new_index:
-    with open('mapping.json') as f:
-        mappings = json.load(f)
-        es.indices.create(index=es_index, body=mappings)
-    print("index %s created" % es_index)
-    if not found_dataset:
-        sys.exit(-1)
-
-if not found_dataset:
-    print("ERROR: Dataset not given")
-    print("set parameter --dataset `path to dataset`")
-    sys.exit(-1)
-
-
-"""
-    Start indexing
-"""
-
-print("Indexing dataset ", dataset)
-
 print("python version:", sys.version)
+
+es = Elasticsearch(timeout=3600)
+
+path = sys.argv[1]  # Get the dataset location
+es_index = 'yandexFixe'   # set the elasticsearch index
+
+with open('mapping.json') as f:
+    if es.indices.exists(index=es_index):
+        es.indices.delete(index=es_index)
+        print('Deleted index', es_index)
+    mappings = json.load(f)
+    es.indices.create(index=es_index, body=mappings)
+    print('Created index', es_index)
+
+time.sleep(.5)
 
 sessions, serps, actions, session_serp = [], [], [], []
 clicks_info = dict()
 
-lines_read = 0
-lines_in_record = 0
-with open(dataset) as fp:
-    for line in fp:
+if isfile(path):
+    read_file(path)
+else:
+    jobs = []
+    for file_name in listdir(path):
+        part_path = join(path, file_name)
+        p = Process(target=read_file, args=(part_path,))
+        jobs.append(p)
+        p.start()
 
-        # process the line
-        record = line.strip().split('\t')
 
-        if record[1] == 'M':
-            # Handle old session
-            insert_documents()
-            # insert all if we have enough records
-            if lines_in_record > 10000:
-                insert_all()
-                log_info()
-                lines_in_record = 0
-
-            # new session
-            handle_session(record)
-
-        elif record[2] == 'Q' or record[2] == 'T':
-            # new query
-            handle_query(record)
-
-        elif record[2] == 'C':
-            # new click
-            handle_click(record)
-
-        lines_read += 1
-        lines_in_record += 1
-
-insert_documents()
-insert_all()
-log_info()
-print("DONE! Indexed %d lines" % (lines_read))
