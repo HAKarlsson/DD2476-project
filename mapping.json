@@ -31,7 +31,7 @@ PUT yandex
       },
       "properties": {
         "serpId": {
-          "type": "byte",
+          "type": "short",
           "index": false
         },
         "timePassed": {
