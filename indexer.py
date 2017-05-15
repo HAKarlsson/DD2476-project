@@ -4,6 +4,7 @@
 
 import sys
 import time
+import json
 from elasticsearch import Elasticsearch
 from elasticsearch import helpers
 from collections import deque
@@ -140,6 +141,12 @@ start_time = time.time()
 
 dataset = sys.argv[1]  # Get the dataset location
 es_index = 'yandex'   # set the elasticsearch index
+
+with open('mapping.json') as f:
+    mappings = json.load(f)
+    es.indices.delete(index=es_index)
+    es.indices.create(index=es_index, body=mappings)
+
 print("Indexing ", dataset)
 print("python version:", sys.version)
 
