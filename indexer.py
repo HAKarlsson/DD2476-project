@@ -128,12 +128,12 @@ def insert_all():
     sessions, serps = [], []
 
 
-def log_info(start_time, lines_read):
+def log_info(start_time, lines_read, file_path):
     # print indexing information
     elapsed = time.time() - start_time
     # lines per second
     lps = lines_read / elapsed
-    print("Indexed %d lines, %d lps" % (lines_read, lps))
+    print("%s: Indexed %d lines, %d lps" % (file_path, lines_read, lps))
 
 
 def read_file(file_path):
@@ -141,6 +141,8 @@ def read_file(file_path):
     start_time = time.time()
     lines_read = 0
     lines_in_record = 0
+    global es
+    es = Elasticsearch(timeout=3600)
 
     with open(file_path) as f:
         for line in f:
@@ -154,7 +156,7 @@ def read_file(file_path):
                 # insert all if we have enough records
                 if lines_in_record > 10000:
                     insert_all()
-                    log_info(start_time, lines_read)
+                    log_info(start_time, lines_read, file_path)
                     lines_in_record = 0
 
                 # new session
@@ -170,6 +172,8 @@ def read_file(file_path):
 
             lines_read += 1
             lines_in_record += 1
+    insert_documents()
+    insert_all()
     log_info(start_time, lines_read)
     print("DONE! Indexed %d lines" % (lines_read))
 
@@ -178,20 +182,23 @@ def read_file(file_path):
 
 print("python version:", sys.version)
 
-es = Elasticsearch()
+es = Elasticsearch(timeout=3600)
 
 path = sys.argv[1]  # Get the dataset location
 es_index = 'yandex'   # set the elasticsearch index
 
 with open('mapping.json') as f:
+    if es.indices.exists(index=es_index):
+        es.indices.delete(index=es_index)
+        print('Deleted index', es_index)
     mappings = json.load(f)
-    es.indices.delete(index=es_index)
     es.indices.create(index=es_index, body=mappings)
+    print('Created index', es_index)
 
+time.sleep(.5)
 
 sessions, serps, actions, session_serp = [], [], [], []
 clicks_info = dict()
-
 
 if isfile(path):
     read_file(path)
@@ -204,5 +211,3 @@ else:
         p.start()
 
 
-insert_documents()
-insert_all()
