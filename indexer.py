@@ -1,11 +1,20 @@
 ##
 # Authors: Martin Hwasser, Dmytro Kalpakchi, Henrik Karlsson
+#
+#
+# Call with:
+#   python3[.6] indexer.py [parameters]
+#     --dataset: the dataset that should be indexed
+#     --del: delete the index
+#     --new: create a new index
+#     --redo: delete an old index and create a new index
+#   Example: python3 indexer.py --new --dataset dataset/test
 ##
 
 import sys
 import time
 import json
-from elasticsearch import Elasticsearch
+from elasticsearch import Elasticsearch, ElasticsearchException
 from elasticsearch import helpers
 from collections import deque
 from operator import itemgetter
@@ -135,19 +144,66 @@ def log_info():
 
 #### PROGRAM START ####
 
-es = Elasticsearch()
+es = Elasticsearch(timeout=3600)
+es_index = 'yandex'   # set the elasticsearch index
 start_time = time.time()
 
+"""
+   Process program arguments
+"""
+found_dataset = False
+del_index = False
+new_index = False
+args = sys.argv[1:]
+i = 0
+while i < len(args):
+    arg = args[i]
+    if (arg == '--dataset' or arg == '--data'):
+        if len(args) <= (i + 1):
+            print('Add path to dataset after', arg)
+            sys.exit(-1)
+        dataset = args[i+1]
+        i+=1
+        found_dataset = True
+    elif arg == '--del':
+        del_index = True
+    elif arg == '--new':
+        new_index = True
+    elif arg == '--redo':
+        del_index = True
+        new_index = True
+    else:
+        print("Unknown parameter: ", args[i])
+        sys.exit(-1)
+    i+=1
 
-dataset = sys.argv[1]  # Get the dataset location
-es_index = 'yandex'   # set the elasticsearch index
 
-with open('mapping.json') as f:
-    mappings = json.load(f)
+if del_index:
     es.indices.delete(index=es_index)
-    es.indices.create(index=es_index, body=mappings)
+    print("index %s deleted" % es_index)
+    if not new_index:
+        sys.exit(-1)
 
-print("Indexing ", dataset)
+if new_index:
+    with open('mapping.json') as f:
+        mappings = json.load(f)
+        es.indices.create(index=es_index, body=mappings)
+    print("index %s created" % es_index)
+    if not found_dataset:
+        sys.exit(-1)
+
+if not found_dataset:
+    print("ERROR: Dataset not given")
+    print("set parameter --dataset `path to dataset`")
+    sys.exit(-1)
+
+
+"""
+    Start indexing
+"""
+
+print("Indexing dataset ", dataset)
+
 print("python version:", sys.version)
 
 sessions, serps, actions, session_serp = [], [], [], []
