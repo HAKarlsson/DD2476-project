@@ -5,7 +5,7 @@ Yandex Personalized Web Search Challange: https://www.kaggle.com/c/yandex-person
 ### How to use
 
 *  Install elasticsearch and kibana.
-*  Download the train & test data and put them in a folder called dataset in the same directory as the scipts. Then call `./index.sh`
+*  Download the train & test data and put them in a folder called dataset in the same directory as the scripts. Then call `./index.sh`
 
 ### Elasticsearch schema: 
 See `mapping.json`
@@ -19,5 +19,5 @@ Installing the plugin:
 
 Add lines in `elasticsearch.yml` to avoid error:
 ```
-script.max_size_in_bytes: 5000000
+script.max_size_in_bytes: 10000000
 ```
