@@ -133,7 +133,7 @@ def log_info(start_time, lines_read, file_path):
     elapsed = time.time() - start_time
     # lines per second
     lps = lines_read / elapsed
-    print("%s: Indexed %d lines, %d lps" % (file_path, lines_read, lps))
+    print("%s > Indexed %d lines, %d lps" % (file_path, lines_read, lps))
 
 
 def read_file(file_path):
@@ -175,7 +175,7 @@ def read_file(file_path):
     insert_documents()
     insert_all()
     log_info(start_time, lines_read)
-    print("DONE! Indexed %d lines" % (lines_read))
+    print("%s > DONE! Indexed %d lines" % (file_path, lines_read))
 
 
 #### PROGRAM START ####
@@ -185,7 +185,7 @@ print("python version:", sys.version)
 es = Elasticsearch(timeout=3600)
 
 path = sys.argv[1]  # Get the dataset location
-es_index = 'yandex'   # set the elasticsearch index
+es_index = 'yandexFixe'   # set the elasticsearch index
 
 with open('mapping.json') as f:
     if es.indices.exists(index=es_index):
