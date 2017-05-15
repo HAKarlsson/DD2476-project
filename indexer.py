@@ -5,9 +5,8 @@ from elasticsearch import helpers
 from collections import deque
 from operator import itemgetter
 
-es = Elasticsearch()
 
-
+#### DEFINING FUNCTIONS ####
 def dwell2relevance(dwell_time):
     """
      Calculate the relevance from the dwell time
@@ -20,23 +19,11 @@ def dwell2relevance(dwell_time):
         return 2
 
 
-def insert_all():
-    # insert all the records into elasticsearch
-    global sessions, serps
-    deque(helpers.parallel_bulk(es, sessions+serps, chunk_size=5000), maxlen=0)
-    sessions, serps = [], []
-
-
-def log_info():
-    # print indexing information
-    elapsed = time.time() - start_time
-    # lines per second
-    lps = lines_read / elapsed
-    print("Indexed %d lines, %d lps" % (lines_read, lps))
-
-
 def insert_documents():
     global actions, session_serp, clicks_info
+    """
+        Insert all the documents that has been recorded
+    """
     for cur, nex in zip(actions[:-1], actions[1:]):
         if cur[1] == 'Q':
             continue
@@ -69,85 +56,121 @@ def insert_documents():
     clicks_info = dict()
 
 
+def handle_query(record):
+    global session_serp, serps, clicks_info
+    """
+        Handle a query record
+    """
+    session_id = int(record[0])
+    time_passed = int(record[1])
+    serp, query_id = map(int, record[3:5])
+    query = record[5].replace(',', ' ')
+    clicks_info[serp] = dict()
+    is_test = (record[2] == 'T')
+    serps.append({
+        "_type": "serp",
+        "_index": es_index,
+        "_parent": session_id,
+        'serpId': serp,
+        'timePassed': time_passed,
+        'query': query,
+        'isTest': is_test
+    })
+    session_serp.append(serps[-1])
+    actions.append((time_passed, 'Q'))
 
+    site_domain = [item.split(',') for item in record[6:]]
+    for pos, (site, domain) in enumerate(site_domain):
+        # 2nd - relevance, 3rd - number of clicks
+        clicks_info[serp][int(site)] = [pos, int(domain), 0, 0]
+
+
+def handle_session(record):
+    global sessions
+    """
+        Handle a session record
+    """
+    session_id = int(record[0])
+    day, user_id = map(int, record[2:])
+    sessions.append({
+        '_id': session_id,
+        "_type": "session",
+        "_index": es_index,
+        'day': day,
+        'user': user_id
+    })
+
+
+def handle_click(record):
+    global actions, clicks_info
+    """
+        Handle a click record
+    """
+    time_passed = int(record[1])
+    serp, site = map(int, record[3:])
+
+    clicks_info[serp][site][3] += 1
+    actions.append((time_passed, 'C', serp, site))
+
+
+def insert_all():
+    global sessions, serps
+    # insert all the records into elasticsearch
+    deque(helpers.parallel_bulk(es, sessions + serps, chunk_size=5000), maxlen=0)
+    sessions, serps = [], []
+
+
+def log_info():
+    # print indexing information
+    elapsed = time.time() - start_time
+    # lines per second
+    lps = lines_read / elapsed
+    print("Indexed %d lines, %d lps" % (lines_read, lps))
+
+
+#### PROGRAM START ####
+
+es = Elasticsearch()
 start_time = time.time()
 
-# Get program arguments
-dataset = sys.argv[1]
-es_index = 'yandex'
-print("Indexing ", dataset)
 
+dataset = sys.argv[1]  # Get the dataset location
+es_index = 'yandex'   # set the elasticsearch index
+print("Indexing ", dataset)
 print("python version:", sys.version)
 
-sessions, serps = [], []
+sessions, serps, actions, session_serp = [], [], [], []
+clicks_info = dict()
 
 lines_read = 0
-clicks_info = dict()
-actions = []
-# init next_serp
-next_serp = es.count(index='yandex', doc_type='serp')['count']
-print("Starting with serp id: ", next_serp)
-
 lines_in_record = 0
 with open(dataset) as fp:
     for line in fp:
-        lines_read += 1
 
         # process the line
         record = line.strip().split('\t')
-        if record[1] == 'M':
 
+        if record[1] == 'M':
+            # Handle old session
             insert_documents()
-            # new session
+            # insert all if we have enough records
             if lines_in_record > 10000:
                 insert_all()
                 log_info()
                 lines_in_record = 0
 
-            session_id = int(record[0])
-            day, user_id = map(int, record[2:])
-            sessions.append({
-                '_id': session_id,
-                "_type": "session",
-                "_index": es_index,
-                'day': day,
-                'user': user_id
-            })
+            # new session
+            handle_session(record)
 
         elif record[2] == 'Q' or record[2] == 'T':
             # new query
-            time_passed = int(record[1])
-            serp, query_id = map(int, record[3:5])
-            query = record[5].replace(',', ' ')
-            clicks_info[serp] = dict()
-            is_test = (record[2] == 'T')
-            serps.append({
-                "_id": next_serp,
-                "_type": "serp",
-                "_index": es_index,
-                "_parent": session_id,
-                'serpId': serp,
-                'timePassed': time_passed,
-                'query': query,
-                'isTest': is_test
-            })
-            session_serp.append(serps[-1])
-            next_serp += 1
-            actions.append((time_passed, 'Q'))
-
-            site_domain = [item.split(',') for item in record[6:]]
-            for pos, (site, domain) in enumerate(site_domain):
-                # 2nd - relevance, 3rd - number of clicks
-                clicks_info[serp][int(site)] = [pos, int(domain), 0, 0]
+            handle_query(record)
 
         elif record[2] == 'C':
             # new click
-            time_passed = int(record[1])
-            serp, site = map(int, record[3:])
+            handle_click(record)
 
-            clicks_info[serp][site][3] += 1
-            actions.append((time_passed, 'C', serp, site))
-
+        lines_read += 1
         lines_in_record += 1
 
 insert_documents()
