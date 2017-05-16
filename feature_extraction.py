@@ -1,7 +1,17 @@
+#
+# Example usage:
+#    python feature_extraction.py 2 > features.rkb
+#           for getting features for day 2 only
+#
+#    python feature_extraction.py 2:17 > features.rkb
+#           for getting features between day 2 and 17 inclusively
+#
+
 from elasticsearch import Elasticsearch
 from pprint import pprint
 import numpy as np
 import json
+import sys
 
 ##
 # Extract features from elasticsearch
@@ -123,11 +133,11 @@ def get_labels(serp):
 def dump2ranklib_file(qid, labels, features):
     output = ""
     for pos in range(10):
-        output = "%d qid:%d" % (labels[pos], qid)
+        output += "%d qid:%d" % (labels[pos], qid)
         for num, feature in enumerate(features[pos, :]):
             output += " %d:%.3f" % (num, feature)
         output += "\n"
-    print(output)
+    print(output, end='')
 
 
 def template_query():
@@ -151,18 +161,22 @@ fill dictionaries with serp
 session -> serp
 """
 qid = 0
-for sessions in get_session(3, 100):
-    for session in sessions:
-        serps = get_serp(session)
-        if len(serps) < 2:
-            continue
-        features = get_features(serps[:-1])
-        labels = get_labels(serps[-2])
-        """ 
-         print to RankLib file
-        """
-        dump2ranklib_file(qid, labels, features)
-        qid += 1
+day_range = sys.argv[1].split(':')
+start = int(day_range[0])
+end = start if len(day_range) == 1 else int(day_range[1])
+for day in range(start, end + 1):
+    for sessions in get_session(day, 100):
+        for session in sessions:
+            serps = get_serp(session)
+            if len(serps) < 2:
+                continue
+            features = get_features(serps[:-1])
+            labels = get_labels(serps[-2])
+            """ 
+             print to RankLib file
+            """
+            dump2ranklib_file(qid, labels, features)
+            qid += 1
 
 
 """
