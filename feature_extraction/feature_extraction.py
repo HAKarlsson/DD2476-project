@@ -1,6 +1,7 @@
 from elasticsearch import Elasticsearch
 from pprint import pprint
 import numpy as np
+import json
 
 ##
 # Extract features from elasticsearch
@@ -80,7 +81,7 @@ def get_features(serps):
     """
     label_docs = serps[-1]["_source"]["documents"]
     session_history = [serp["_source"] for serp in serps[:-1]]
-    num_features = 3
+    num_features = 10
     features = np.zeros((10, num_features))
     query = serps[-1]["_source"]["query"]
 
@@ -93,18 +94,18 @@ def get_features(serps):
         for serp in session_history:
             if serp["query"] == query:
                 doc = serp["documents"][pos]
-                features[pos, 2] += doc["clicks"] / num_same_query
-                features[pos, 3] += doc["relevance"] / num_same_query
+                features[pos, 2] += doc["clicks"]
+                features[pos, 3] += doc["relevance"]
                 
             for doc in serp["documents"]:
                 if doc['site'] == site:
-                    features[pos, 4] += doc['clicks'] / len(serps)
-                    features[pos, 5] += doc['relevance'] / len(serps)
-                    features[pos, 6] += 1  / len(serps)
+                    features[pos, 4] += doc['clicks']
+                    features[pos, 5] += doc['relevance']
+                    features[pos, 6] += 1
                 if doc['domain'] == domain:
-                    features[pos, 7] += doc['clicks']  / len(serps)
-                    features[pos, 8] += doc['relevance']  / len(serps)
-                    features[pos, 9] += 1  / len(serps)
+                    features[pos, 7] += doc['clicks']
+                    features[pos, 8] += doc['relevance']
+                    features[pos, 9] += 1
                      
     return features
 
@@ -128,6 +129,20 @@ def dump2ranklib_file(qid, labels, features):
             f.write(line + "\n")
 
 
+def template_query():
+    with open("search_templates/temp.mustache") as f:
+        body = json.load(f)
+
+    es.put_template(id="temp", body=body)
+    res = es.search_template(index=es_index, body={
+            "inline": es.get_template(id="temp")["template"],
+            "params": {
+                "day": 5, 
+                "user": 10
+            }})
+    return res
+
+
 """
 Get sessions
 Create dictionaries for session
@@ -147,6 +162,7 @@ for sessions in get_session(3, 100):
         """
         dump2ranklib_file(qid, labels, features)
         qid += 1
+
 
 """
 days [1-24] -> history dataset

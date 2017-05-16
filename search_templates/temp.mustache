@@ -1,0 +1,57 @@
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "has_parent": {
+            "parent_type": "session",
+            "query": {
+              "bool": {
+                "must": [
+                  {
+                    "range": {
+                      "day": {
+                        "lt": "{{day}}"
+                      }
+                    }
+                  },
+                  {
+                    "match": {
+                      "user": "{{user}}"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "nested": {
+            "path": "documents",
+            "query": {
+              "range": {
+                "documents.clicks": {
+                  "gt": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "aggs": {
+    "click-count": {
+      "nested": {
+        "path": "documents"
+      },
+      "aggs": {
+        "click-count": {
+          "sum": {
+            "field": "documents.clicks"
+          }
+        }
+      }
+    }
+  }
+}
