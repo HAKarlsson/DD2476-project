@@ -191,15 +191,17 @@ print("python version:", sys.version)
 es = Elasticsearch(timeout=3600, maxsize=30)
 
 path = sys.argv[1]  # Get the dataset location
+to_delete = sys.argv[2] == 't' if len(sys.argv) > 2 else False # delete index or not
 es_index = 'yandex'   # set the elasticsearch index
 
-with open('mapping.json') as f:
-    if es.indices.exists(index=es_index):
-        es.indices.delete(index=es_index)
-        print('Deleted index', es_index)
-    mappings = json.load(f)
-    es.indices.create(index=es_index, body=mappings)
-    print('Created index', es_index)
+if to_delete:
+    with open('mapping.json') as f:
+        if es.indices.exists(index=es_index):
+            es.indices.delete(index=es_index)
+            print('Deleted index', es_index)
+        mappings = json.load(f)
+        es.indices.create(index=es_index, body=mappings)
+        print('Created index', es_index)
 
 time.sleep(.5)
 
