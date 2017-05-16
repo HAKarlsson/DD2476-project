@@ -12,6 +12,10 @@ from pprint import pprint
 import numpy as np
 import json
 import sys
+import time
+import logging
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(message)s")
 
 ##
 # Extract features from elasticsearch
@@ -154,6 +158,14 @@ def template_query():
     return res
 
 
+def log_info(start_time, session_processed):
+    # print indexing information
+    elapsed = time.time() - start_time
+    # lines per second
+    sps = session_processed / elapsed
+    logging.info("Indexed %d lines, %.2f sps" % (session_processed, sps))
+
+
 """
 Get sessions
 Create dictionaries for session
@@ -164,19 +176,23 @@ qid = 0
 day_range = sys.argv[1].split(':')
 start = int(day_range[0])
 end = start if len(day_range) == 1 else int(day_range[1])
+
+start_time = time.time()
+sessions_processed = 0
 for day in range(start, end + 1):
     for sessions in get_session(day, 100):
         for session in sessions:
             serps = get_serp(session)
-            if len(serps) < 2:
-                continue
-            features = get_features(serps[:-1])
-            labels = get_labels(serps[-2])
-            """ 
-             print to RankLib file
-            """
-            dump2ranklib_file(qid, labels, features)
-            qid += 1
+            if len(serps) >= 2:
+                features = get_features(serps[:-1])
+                labels = get_labels(serps[-2])
+                """ 
+                 print to RankLib file
+                """
+                dump2ranklib_file(qid, labels, features)
+                qid += 1
+            sessions_processed += 1
+            log_info(start_time, sessions_processed)
 
 
 """
