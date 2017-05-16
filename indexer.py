@@ -180,7 +180,7 @@ def read_file(file_path):
             lines_in_record += 1
     insert_documents(es)
     insert_all(es)
-    log_info(start_time, lines_read)
+    log_info(start_time, lines_read, file_path)
     print("%s > DONE! Indexed %d lines" % (file_path, lines_read))
 
 
