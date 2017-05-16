@@ -173,6 +173,15 @@ fill dictionaries with serp
 session -> serp
 """
 qid = 0
+
+if len(sys.argv) < 2:
+    logging.error("""
+        You have to provide it with day argument like
+           python feature_extraction.py 3
+           python feature_extraction.py 3:18
+        """)
+    sys.exit(1)
+
 day_range = sys.argv[1].split(':')
 start = int(day_range[0])
 end = start if len(day_range) == 1 else int(day_range[1])
@@ -182,10 +191,10 @@ sessions_processed = 0
 for day in range(start, end + 1):
     for sessions in get_session(day, 100):
         for session in sessions:
-            serps = get_serp(session)
-            if len(serps) >= 2:
-                features = get_features(serps[:-1])
-                labels = get_labels(serps[-2])
+            serps = get_serp(session)[:-1]
+            if len(serps) > 0:
+                features = get_features(serps)
+                labels = get_labels(serps[-1])
                 """ 
                  print to RankLib file
                 """
