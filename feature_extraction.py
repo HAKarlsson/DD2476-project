@@ -121,12 +121,13 @@ def get_labels(serp):
 
 
 def dump2ranklib_file(qid, labels, features):
-    with open("features.rkb", "a") as f:
-        for pos in range(10):
-            line = "%d qid:%d" % (labels[pos], qid)
-            for num, feature in enumerate(features[pos, :]):
-                line += " %d:%.3f" % (num, feature)
-            f.write(line + "\n")
+    output = ""
+    for pos in range(10):
+        output = "%d qid:%d" % (labels[pos], qid)
+        for num, feature in enumerate(features[pos, :]):
+            output += " %d:%.3f" % (num, feature)
+        output += "\n"
+    print(output)
 
 
 def template_query():
