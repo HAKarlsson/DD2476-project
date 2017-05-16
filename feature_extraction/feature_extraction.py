@@ -46,7 +46,7 @@ def get_serp(session):
     """
     query = \
         {
-            "size": 100,
+            "size": 10000,
             "sort": [
                 {"serpId": "asc"}
             ],
@@ -66,28 +66,46 @@ def get_serp(session):
 def get_features(serps):
     """
     Extracted features are:
-      1. Unpersonalized rank
-      2. Unpersonalized rank scaled with exp
-      3. Total number of clicks for the same query
-      4. Total relevance of all clicks for the same query
-      3. hit/miss/skip?
+      0. Unpersonalized rank
+      1. Unpersonalized rank scaled with exp
+      2. Total number of clicks for the same query in same session
+      3. Total relevance of all clicks for the same query in same session
+      4. Total clicks in same session same site
+      5. Total relevance in same session same site
+      6. Total displayed in same session same site
+      7. Total clicks in same session same domain
+      8. Total relevance in same session same domain
+      9. Total displayed in same session same domain
+      3. hit/miss/skip? (see dataiku sec 4.2.2)
     """
     label_docs = serps[-1]["_source"]["documents"]
     session_history = [serp["_source"] for serp in serps[:-1]]
-    num_features = 4
-    features = np.zeros((10,num_features))
+    num_features = 3
+    features = np.zeros((10, num_features))
     query = serps[-1]["_source"]["query"]
+
     for pos, doc in enumerate(label_docs):
         site = doc['site']
         domain = doc['domain']
-        features[pos,0] = pos
-        features[pos,1] = np.exp(-pos)
-        
+        features[pos, 0] = pos
+        features[pos, 1] = np.exp(-pos)
+
         for serp in session_history:
             if serp["query"] == query:
-                for doc in serp["documents"]:
-                    features[pos,2] += doc["clicks"]
-                    features[pos,3] += doc["relevance"]
+                doc = serp["documents"][pos]
+                features[pos, 2] += doc["clicks"] / num_same_query
+                features[pos, 3] += doc["relevance"] / num_same_query
+                
+            for doc in serp["documents"]:
+                if doc['site'] == site:
+                    features[pos, 4] += doc['clicks'] / len(serps)
+                    features[pos, 5] += doc['relevance'] / len(serps)
+                    features[pos, 6] += 1  / len(serps)
+                if doc['domain'] == domain:
+                    features[pos, 7] += doc['clicks']  / len(serps)
+                    features[pos, 8] += doc['relevance']  / len(serps)
+                    features[pos, 9] += 1  / len(serps)
+                     
     return features
 
 
@@ -105,10 +123,10 @@ def dump2ranklib_file(qid, labels, features):
     with open("features.rkb", "a") as f:
         for pos in range(10):
             line = "%d qid:%d" % (labels[pos], qid)
-            for num, feature in enumerate(features[pos,:]):
+            for num, feature in enumerate(features[pos, :]):
                 line += " %d:%.3f" % (num, feature)
             f.write(line + "\n")
-    
+
 
 """
 Get sessions
@@ -120,10 +138,27 @@ qid = 0
 for sessions in get_session(3, 100):
     for session in sessions:
         serps = get_serp(session)
-        features = get_features(serps)
-        labels = get_labels(serps[-1])
-        """
+        if len(serps) < 2:
+            continue
+        features = get_features(serps[:-1])
+        labels = get_labels(serps[-2])
+        """ 
          print to RankLib file
         """
-        dump2ranklib_file(qid, labels, features)    
+        dump2ranklib_file(qid, labels, features)
         qid += 1
+
+"""
+days [1-24] -> history dataset
+days [25-27] -> training set
+days [28-30] -> test set
+
+session 0
+serp0
+serp1
+session 1 history
+serp0
+serp1
+serp2
+serp3 <- for prediction 
+"""
