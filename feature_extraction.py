@@ -139,7 +139,7 @@ def dump2ranklib_file(qid, labels, features):
     for pos in range(10):
         output += "%d qid:%d" % (labels[pos], qid)
         for num, feature in enumerate(features[pos, :]):
-            output += " %d:%.3f" % (num, feature)
+            output += " %d:%.3f" % (num + 1, feature)
         output += "\n"
     print(output, end='')
 
