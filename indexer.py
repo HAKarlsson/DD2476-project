@@ -54,29 +54,28 @@ def insert_documents(es):
             clicks_info[serp][site][2] = new_relevance
 
     for serp in clicks_info.keys():
-        documents = []
+        documents = [None] * 10
         for site, site_info in clicks_info[serp].items():
             pos, domain = site_info[0:2]
             relevance, clicks = site_info[2:]
-            documents.append((pos, {
+            documents[pos] = {
                 "site": site,
                 "domain": domain,
                 "clicks": clicks,
                 "relevance": relevance,
-            }))
-        documents.sort()
-        session_serp[serp]['documents'] = list(map(itemgetter(1), documents))
+                "position": pos
+            }
+        session_serp[serp]['documents'] = documents
 
     actions, session_serp = [], []
     clicks_info = dict()
 
 
-def handle_query(es, record):
+def handle_query(es, record, session):
     global session_serp, serps, clicks_info
     """
         Handle a query record
     """
-    session_id = int(record[0])
     time_passed = int(record[1])
     serp, query_id = map(int, record[3:5])
     query = record[5].replace(',', ' ')
@@ -85,9 +84,10 @@ def handle_query(es, record):
     serps.append({
         "_type": "serp",
         "_index": es_index,
-        "_parent": session_id,
         'serpId': serp,
-        'timePassed': time_passed,
+        'session': session[0],
+        'user': session[2],
+        'day': session[1],
         'query': query,
         'isTest': is_test
     })
@@ -101,20 +101,13 @@ def handle_query(es, record):
 
 
 def handle_session(es, record):
-    global sessions
+    global user, day
     """
         Handle a session record
     """
     session_id = int(record[0])
     day, user_id = map(int, record[2:])
-    sessions.append({
-        '_id': session_id,
-        "_type": "session",
-        "_index": es_index,
-        'day': day,
-        'user': user_id
-    })
-
+    return (session_id, day, user_id)
 
 def handle_click(es, record):
     global actions, clicks_info
@@ -129,10 +122,10 @@ def handle_click(es, record):
 
 
 def insert_all(es):
-    global sessions, serps
+    global serps
     # insert all the records into elasticsearch
-    deque(helpers.parallel_bulk(es, sessions + serps, chunk_size=5000), maxlen=0)
-    sessions, serps = [], []
+    deque(helpers.parallel_bulk(es, serps, chunk_size=5000), maxlen=0)
+    serps = []
 
 
 def log_info(start_time, lines_read, file_path):
@@ -149,7 +142,7 @@ def read_file(file_path):
     lines_read = 0
     lines_in_record = 0
     es = Elasticsearch(timeout=3600)
-
+    session = None
     with open(file_path) as f:
         for line in f:
 
@@ -166,11 +159,11 @@ def read_file(file_path):
                     lines_in_record = 0
 
                 # new session
-                handle_session(es, record)
+                session = handle_session(es, record)
 
             elif record[2] == 'Q' or record[2] == 'T':
                 # new query
-                handle_query(es, record)
+                handle_query(es, record, session)
 
             elif record[2] == 'C':
                 # new click
@@ -191,7 +184,8 @@ print("python version:", sys.version)
 es = Elasticsearch(timeout=3600, maxsize=30)
 
 path = sys.argv[1]  # Get the dataset location
-to_delete = sys.argv[2] == 't' if len(sys.argv) > 2 else False # delete index or not
+to_delete = sys.argv[2] == 't' if len(
+    sys.argv) > 2 else False  # delete index or not
 es_index = 'yandex'   # set the elasticsearch index
 
 if to_delete:
@@ -205,7 +199,7 @@ if to_delete:
 
 time.sleep(.5)
 
-sessions, serps, actions, session_serp = [], [], [], []
+serps, actions, session_serp = [], [], []
 clicks_info = dict()
 
 if isfile(path):
@@ -217,5 +211,3 @@ else:
         p = Process(target=read_file, args=(part_path,))
         jobs.append(p)
         p.start()
-
-

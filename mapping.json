@@ -6,34 +6,23 @@
     "refresh_interval": "2s"
   },
   "mappings": {
-    "session": {
-      "_all": {
-        "enabled": false
-      },
-      "properties": {
-        "user": {
-          "type": "integer"
-        },
-        "day": {
-          "type": "byte"
-        }
-      }
-    },
     "serp": {
       "_all": {
         "enabled": false
-      },
-      "_parent": {
-        "type": "session"
       },
       "properties": {
         "serpId": {
           "type": "short",
           "index": false
         },
-        "timePassed": {
-          "type": "integer",
-          "index": false
+        "user": {
+          "type": "integer"
+        },
+        "day": {
+          "type": "byte"
+        },
+        "session": {
+          "type": "integer"
         },
         "query": {
           "type": "text",
@@ -43,7 +32,27 @@
           "type": "boolean"
         },
         "documents": {
-          "type": "nested"
+          "type": "nested",
+          "properties": {
+            "site": {
+              "type": "integer"
+            },
+            "domain": {
+              "type": "integer"
+            },
+            "clicks": {
+              "type": "integer",
+              "index": false
+            },
+            "relevance": {
+              "type": "integer",
+              "index": false
+            },
+            "position": {
+              "type": "integer",
+              "index": false
+            }
+          }
         }
       }
     }
