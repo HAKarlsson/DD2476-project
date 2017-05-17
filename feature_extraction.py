@@ -14,6 +14,8 @@ import json
 import sys
 import time
 import logging
+import multiprocessing as mp
+import queue
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(message)s")
 
@@ -134,14 +136,14 @@ def get_labels(serp):
     return labels, info
 
 
-def dump2ranklib_file(qid, labels, info, features):
+def dump2ranklib(qid, labels, info, features):
     output = ""
     for pos in range(10):
         output += "%d qid:%d" % (labels[pos], qid)
         for num, feature in enumerate(features[pos, :]):
             output += " %d:%.3f" % (num, feature)
         output += " # %d\n" % info[pos]
-    print(output, end='')
+    return output
 
 
 def template_query():
@@ -165,6 +167,30 @@ def log_info(start_time, sessions_processed):
     sps = sessions_processed / elapsed
     logging.info("Processed %d sessions, %.2f sps" % (sessions_processed, sps))
 
+def producer(q, session_id):
+    serps = get_serp(session_id)
+    labels, info = get_labels(serps[-1])
+    if np.sum(labels) > 0 or isTest:
+        features = get_features(serps)
+        q.put((labels, info, features, ))
+    # sessions_processed += 1
+    # log_info(start_time, sessions_processed)
+
+def consumer(q):
+    f = open('ranklib.out', 'w')
+    qid = 1
+    while True:
+        try:
+            item = q.get(True)
+            if item is None:
+                break
+            f.write(dump2ranklib(qid, *item))
+            # f.flush()
+            qid += 1
+        except queue.Empty:
+            pass
+
+    f.close()
 
 """
 Get sessions
@@ -173,41 +199,45 @@ fill dictionaries with serp
 session -> serp
 """
 
-
-
-if len(sys.argv) < 2:
-    logging.error("""
-        You have to provide it with day argument like
-           python feature_extraction.py 3
-           python feature_extraction.py 3:18
-        """)
-    sys.exit(1)
-
-day_range = sys.argv[1].split(':')
-start = int(day_range[0])
-end = start if len(day_range) == 1 else int(day_range[1])
-
-isTest = False
-if len(sys.argv) > 2 and sys.argv[2] == 'test':
-    isTest = True
-
 # Create an elasticsearch client
 es = Elasticsearch(timeout=3600)
 es_index = 'yandex'
-sessions_processed = 0
-start_time = time.time()
-for day in range(start, end + 1):
-    sessions = get_session(day)
+
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        logging.error("""
+            You have to provide it with day argument like
+            python feature_extraction.py 3
+            python feature_extraction.py 3:18
+            """)
+        sys.exit(1)
+
+    day_range = sys.argv[1].split(':')
+    start = int(day_range[0])
+    end = start if len(day_range) == 1 else int(day_range[1])
+
+    isTest = False
+    if len(sys.argv) > 2 and sys.argv[2] == 'test':
+        isTest = True
+
+    pool = mp.Pool(processes=mp.cpu_count())
+    m = mp.Manager()
+    q = m.Queue()
+    con = mp.Process(name='consumer', target=consumer, args=(q, ))
+    con.start()
+
+
     sessions_processed = 0
     start_time = time.time()
-    for (session_id, serp_count) in sessions:
-        serps = get_serp(session_id)
-        labels, info = get_labels(serps[-1])
-        if np.sum(labels) > 0 or isTest:
-            features = get_features(serps)
-            dump2ranklib_file(session_id, labels, info, features)
-        sessions_processed += 1
-        log_info(start_time, sessions_processed)
+    for day in range(start, end + 1):
+        sessions = get_session(day)
+        for (session_id, serp_count) in sessions:
+            pool.apply_async(producer, (q, session_id,))
+
+    pool.close()
+    pool.join()
+    q.put(None)
+    con.join()
 
 
 """
