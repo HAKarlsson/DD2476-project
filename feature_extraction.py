@@ -173,11 +173,11 @@ def producer(q, session_id):
     if np.sum(labels) > 0 or isTest:
         features = get_features(serps)
         q.put((labels, info, features, ))
-    # sessions_processed += 1
-    # log_info(start_time, sessions_processed)
+
 
 def consumer(q):
     f = open('ranklib.out', 'w')
+    start_time = time.time()
     qid = 1
     while True:
         try:
@@ -185,7 +185,9 @@ def consumer(q):
             if item is None:
                 break
             f.write(dump2ranklib(qid, *item))
-            # f.flush()
+            # f.flush() # not flushing immediately for better performance
+            
+            log_info(start_time, qid)
             qid += 1
         except queue.Empty:
             pass
@@ -225,10 +227,7 @@ if __name__ == '__main__':
     q = m.Queue()
     con = mp.Process(name='consumer', target=consumer, args=(q, ))
     con.start()
-
-
-    sessions_processed = 0
-    start_time = time.time()
+    
     for day in range(start, end + 1):
         sessions = get_session(day)
         for (session_id, serp_count) in sessions:
