@@ -57,6 +57,7 @@ def insert_documents(es):
         if action[1] == 'C':
             serp, site = action[2], action[3]
             clicks_info[serp][site][2] = 2
+            break
 
     for serp in clicks_info.keys():
         documents = [None] * 10

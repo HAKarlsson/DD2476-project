@@ -45,35 +45,54 @@ def get_serp(session_id, es):
     return serps
 
 
-def get_features(serps):
+def get_features(es, serps):
     """
     Extracted features are:
       0. Unpersonalized rank
       1. Unpersonalized rank scaled with exp
-      2. Total number of clicks for the same query in same session
-      3. Total relevance of all clicks for the same query in same session
-      4. Avg clicks in same session same site
-      5. Avg relevance in same session same site
-      6. Avg displayed in same session same site
-      7. Avg clicks in same session same domain
-      8. Avg relevance in same session same domain
-      9. Avg displayed in same session same domain
-      3. hit/miss/skip? (see dataiku sec 4.2.2)
+
+      2. Same query, same session: Avg clicks
+      3. Same query, same session: Avg relevance
+
+      4. Same session, same site: Avg clicks
+      5. Same session, same site: Avg relevance
+
+      6. Same session, same domain: Avg clicks
+      7. Same session, same domain: Avg relevance
+
+      8. User history, same site, similar query: Avg clicks
+      9. User history, same site, similar query: Avg relevance
+
+      10. User history, same domain, similar query: Avg clicks
+      11. User history, same domain, similar query: Avg relevance
+
+      hit/miss/skip? (see dataiku sec 4.2.2)
     """
     label_docs = serps[-1]["documents"]
     session_history = [serp for serp in serps[:-1]]
-    num_features = 10
+    num_features = 12
     features = np.zeros((10, num_features))
     query = serps[-1]["query"]
     user = serps[-1]['user']
     day = serps[-1]['day']
+
+    user_full_history = template_query(es, id='user-history',
+                                       params={"day": days[0],
+                                               "user": user,
+                                               "query": query}
+                                       )['hits']['hits']
+    user_full_history = [serp["_source"] for serp in user_full_history]
+
 
     for pos, doc in enumerate(label_docs):
         site = doc['site']
         domain = doc['domain']
         features[pos, 0] = pos
         features[pos, 1] = np.exp(-pos)
-
+        site_shown_session = 1
+        domain_shown_session = 1
+        site_shown_history = 1
+        domain_shown_history = 1
         for serp in session_history:
             if serp["query"] == query:
                 doc = serp["documents"][pos]
@@ -82,13 +101,31 @@ def get_features(serps):
 
             for doc in serp["documents"]:
                 if doc['site'] == site:
-                    features[pos, 4] += doc['clicks'] / len(serps)
-                    features[pos, 5] += doc['relevance'] / len(serps)
-                    features[pos, 6] += 1 / len(serps)
+                    features[pos, 4] += doc['clicks']
+                    features[pos, 5] += doc['relevance']
+                    site_shown_session += 1
                 if doc['domain'] == domain:
-                    features[pos, 7] += doc['clicks'] / len(serps)
-                    features[pos, 8] += doc['relevance'] / len(serps)
-                    features[pos, 9] += 1 / len(serps)
+                    features[pos, 6] += doc['clicks']
+                    features[pos, 7] += doc['relevance']
+                    domain_shown_session += 1
+        features[pos, 4:6] /= site_shown_session
+        features[pos, 6:8] /= domain_shown_session
+        for serp in user_full_history:
+            for doc2 in serp["documents"]:
+                if doc2['site'] == site:
+                    features[pos, 8] += doc2['clicks']
+                    features[pos, 9] += doc2['relevance']
+                    site_shown_history += 1
+
+                if doc2['domain'] == domain:
+                    features[pos, 10] += doc2['clicks']
+                    features[pos, 11] += doc2['relevance']
+                    domain_shown_history += 1
+
+        features[pos, 8:10] /= site_shown_history
+        features[pos, 10:12] /= domain_shown_history
+
+    features[pos,2:4] /= len(serps)
 
     return features
 
@@ -157,7 +194,7 @@ def producer(output_queue, session_queue):
             serps = get_serp(session_id, es)
             labels, info = get_labels(serps[-1])
             if np.sum(labels) > 0 or isTest:
-                features = get_features(serps)
+                features = get_features(es, serps)
                 output_queue.put((labels, info, features, session_id))
         except queue.Empty:
             pass
@@ -203,7 +240,6 @@ while i < len(args):
         days = tuple(args[i].split(':'))
         if len(days) == 1:
             days += days
-        print(days)
         days = tuple(map(int, days))
     elif arg == '--output':
         i += 1
@@ -220,7 +256,8 @@ if output_file == None:
     print("Specify output file '--output [filename]'")
     sys.exit(-1)
 elif days == None:
-    print("Specify days to create features on '--days [day]' or '--day [first day]:[last day]'")
+    print(
+        "Specify days to create features on '--days [day]' or '--day [first day]:[last day]'")
     sys.exit(-1)
 
 # Create an elasticsearch client
@@ -239,7 +276,7 @@ session_queue = mp.Queue()
 cons = mp.Process(name='cons', target=consumer,
                   args=(output_queue, output_file,))
 jobs = []
-for i in range(mp.cpu_count() * 2):
+for i in range(mp.cpu_count() * 3 // 2):
     job = mp.Process(name='prod%d' % i, target=producer,
                      args=(output_queue, session_queue,))
     jobs.append(job)

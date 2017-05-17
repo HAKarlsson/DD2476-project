@@ -1,0 +1,39 @@
+{
+  "template": {
+    "size": 100,
+    "sort": [
+      {
+        "day": "desc"
+      },
+      {
+        "serpId": "asc"
+      }
+    ],
+    "query": {
+      "bool": {
+        "must": [
+          {
+            "match": {
+              "user": "{{user}}"
+            }
+          },
+          {
+            "range": {
+              "day": {
+                "lt": "{{day}}"
+              }
+            }
+          }, 
+          {
+            "match": {
+              "query": {
+                "query": "{{query}}",
+                "operator" : "or"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
