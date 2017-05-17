@@ -53,6 +53,11 @@ def insert_documents(es):
         if new_relevance > cur_relevance:
             clicks_info[serp][site][2] = new_relevance
 
+    for action in actions[::-1]:
+        if action[1] == 'C':
+            serp, site = action[2], action[3]
+            clicks_info[serp][site][2] = 2
+
     for serp in clicks_info.keys():
         documents = [None] * 10
         for site, site_info in clicks_info[serp].items():
