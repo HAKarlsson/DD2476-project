@@ -188,12 +188,25 @@ print("python version:", sys.version)
 
 es = Elasticsearch(timeout=3600, maxsize=30)
 
-path = sys.argv[1]  # Get the dataset location
-to_delete = sys.argv[2] == 't' if len(
-    sys.argv) > 2 else False  # delete index or not
-es_index = 'yandex'   # set the elasticsearch index
+dataset_path = None
+keep_index = False
+args = sys.argv[1:]
+i = 0
+while i < len(args):
+    arg = args[i]
+    if arg=='--dataset':
+        i += 1
+        dataset_path = args[i]
+    elif arg == '--keep':
+        keep_index = True
+    i += 1
 
-if to_delete:
+if dataset_path == None:
+    print("You have to specify dataset location '--dataset [path to dataset]'. ")
+
+
+es_index = 'yandex'   # set the elasticsearch index
+if not keep_index:
     with open('mapping.json') as f:
         if es.indices.exists(index=es_index):
             es.indices.delete(index=es_index)
@@ -207,12 +220,12 @@ time.sleep(.5)
 serps, actions, session_serp = [], [], []
 clicks_info = dict()
 
-if isfile(path):
-    read_file(path)
+if isfile(dataset_path):
+    read_file(dataset_path)
 else:
     jobs = []
-    for file_name in listdir(path):
-        part_path = join(path, file_name)
+    for file_name in listdir(dataset_path):
+        part_path = join(dataset_path, file_name)
         p = Process(target=read_file, args=(part_path,))
         jobs.append(p)
         p.start()
