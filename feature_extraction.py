@@ -147,7 +147,7 @@ def dump2ranklib(labels, info, features, session_id):
     for pos in range(10):
         output += "%d qid:%d" % (labels[pos], session_id)
         for num, feature in enumerate(features[pos, :]):
-            output += " %d:%.3f" % (num, feature)
+            output += " %d:%.3f" % (num + 1, feature)
         output += " # %d\n" % info[pos]
     return output
 
