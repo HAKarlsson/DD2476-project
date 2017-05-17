@@ -15,32 +15,32 @@ import numpy as np
 import json
 import sys
 import time
-import logging
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(message)s")
+import multiprocessing as mp
+import queue
 
 ##
 # Extract features from elasticsearch
 ##
 
 
-def get_session(day):
+def get_session(es, day):
     """
     Get sessions from a specific day, this function can take a while.
     We should probably save the data from this into a file and then read from the file
     """
-    page = template_query(id="day2sessions",
-                             params={"day": day})
+    page = template_query(es, id="day2sessions",
+                          params={"day": day})
     # returns list of (session_id, number of serps in session)
     buckets = page['aggregations']['sessions']['buckets']
     return [(b['key'], b['doc_count']) for b in buckets]
 
 
-def get_serp(session_id):
+def get_serp(session_id, es):
     """
     Get serps for a batch of sessions
     """
-    res = template_query(id="session2serps", params={"session_id": session_id})
+    res = template_query(es, id="session2serps", params={
+                         "session_id": session_id})
     serps = [r['_source'] for r in res['hits']['hits']]
     return serps
 
@@ -105,17 +105,17 @@ def get_labels(serp):
     return labels, info
 
 
-def dump2ranklib_file(qid, labels, info, features):
+def dump2ranklib(labels, info, features, session_id):
     output = ""
     for pos in range(10):
-        output += "%d qid:%d" % (labels[pos], qid)
+        output += "%d qid:%d" % (labels[pos], session_id)
         for num, feature in enumerate(features[pos, :]):
             output += " %d:%.3f" % (num, feature)
         output += " # %d\n" % info[pos]
-    print(output, end='')
+    return output
 
 
-def template_query(id, params):
+def template_query(es, id, params):
     res = es.search_template(index=es_index, body={
         "inline": templates[id],
         "params": params})
@@ -127,19 +127,60 @@ def get_templates():
     for file_name in listdir("search_templates"):
         part_path = join("search_templates", file_name)
         file_no_ext = file_name.split(".")[0]
-        with open(part_path) as f:
-            body = json.load(f)
+        with open(part_path) as fp:
+            body = json.load(fp)
             es.put_template(id=file_no_ext, body=body)
         templates[file_no_ext] = es.get_template(id=file_no_ext)["template"]
     return templates
 
-def log_info(start_time, sessions_processed):
+
+def log_info():
+    global start_time, sessions_processed, total_processed
     # print indexing information
     elapsed = time.time() - start_time
-    # lines per second
-    sps = sessions_processed / elapsed
-    logging.info("Processed %d sessions, %.2f sps" % (sessions_processed, sps))
+    if elapsed >= 2:
+        # lines per second
+        sps = sessions_processed / elapsed
+        print("Processed %d sessions, %.2f sps" % (total_processed, sps))
+        start_time = time.time()
+        sessions_processed = 0
 
+
+def producer(output_queue, session_queue):
+    es = Elasticsearch(timeout=3600)
+    while True:
+        try:
+            item = session_queue.get()
+            if item is None:
+                break
+            session_id = item
+            serps = get_serp(session_id, es)
+            labels, info = get_labels(serps[-1])
+            if np.sum(labels) > 0 or isTest:
+                features = get_features(serps)
+                output_queue.put((labels, info, features, session_id))
+        except queue.Empty:
+            pass
+
+
+def consumer(output_queue, output_file):
+    global start_time, sessions_processed, total_processed
+    start_time = time.time()
+    sessions_processed = 0
+    total_processed = 0
+    with open(output_file, 'w') as fp:
+        while True:
+            try:
+                item = output_queue.get()
+                if item is None:
+                    break
+                fp.write(dump2ranklib(*item))
+                sessions_processed += 1
+                total_processed += 1
+                log_info()
+            except queue.Empty:
+                pass
+    fp.close()
 
 """
 Get sessions
@@ -148,39 +189,73 @@ fill dictionaries with serp
 session -> serp
 """
 
-if len(sys.argv) < 2:
-    logging.error("""
-        You have to provide it with day argument like
-           python feature_extraction.py 3
-           python feature_extraction.py 3:18
-        """)
-    sys.exit(1)
-
-day_range = sys.argv[1].split(':')
-start = int(day_range[0])
-end = start if len(day_range) == 1 else int(day_range[1])
-
+# Handle program arguments
+days = None
 isTest = False
-if len(sys.argv) > 2 and sys.argv[2] == 'test':
-    isTest = True
+output_file = None
+
+args = sys.argv[1:]
+i = 0
+while i < len(args):
+    arg = args[i]
+    if arg == '--days':
+        i += 1
+        days = tuple(args[i].split(':'))
+        if len(days) == 1:
+            days += days
+        print(days)
+        days = tuple(map(int, days))
+    elif arg == '--output':
+        i += 1
+        output_file = args[i]
+    elif arg == '--test':
+        isTest = True
+    else:
+        print("UNKNOWN PARAMETER '%s' at index %d." % (arg, i))
+        print("EXITING PROGRAM!")
+        sys.exit(-1)
+    i += 1
+
+if output_file == None:
+    print("Specify output file '--output [filename]'")
+    sys.exit(-1)
+elif days == None:
+    print("Specify days to create features on '--days [day]' or '--day [first day]:[last day]'")
+    sys.exit(-1)
 
 # Create an elasticsearch client
 es = Elasticsearch(timeout=3600)
 # load templates to node
 templates = get_templates()
 
+
 es_index = 'yandex'
-sessions_processed = 0
 start_time = time.time()
-for day in range(start, end + 1):
-    sessions = get_session(day)
-    sessions_processed = 0
-    start_time = time.time()
+
+
+output_queue = mp.Queue()
+session_queue = mp.Queue()
+
+cons = mp.Process(name='cons', target=consumer,
+                  args=(output_queue, output_file,))
+jobs = []
+for i in range(mp.cpu_count() * 2):
+    job = mp.Process(name='prod%d' % i, target=producer,
+                     args=(output_queue, session_queue,))
+    jobs.append(job)
+    job.start()
+
+cons.start()
+
+for day in range(days[0], days[1] + 1):
+    sessions = get_session(es, day)
     for (session_id, serp_count) in sessions:
-        serps = get_serp(session_id)
-        labels, info = get_labels(serps[-1])
-        if np.sum(labels) > 0 or isTest:
-            features = get_features(serps)
-            dump2ranklib_file(session_id, labels, info, features)
-        sessions_processed += 1
-        log_info(start_time, sessions_processed)
+        session_queue.put(session_id)
+
+for i in range(len(jobs)):
+    session_queue.put(None)
+
+for job in jobs:
+    job.join()
+output_queue.put(None)
+cons.join()

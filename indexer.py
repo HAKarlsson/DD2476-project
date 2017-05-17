@@ -207,6 +207,7 @@ while i < len(args):
 
 if dataset_path == None:
     print("You have to specify dataset location '--dataset [path to dataset]'. ")
+    sys.exit(-1)
 
 
 es_index = 'yandex'   # set the elasticsearch index
