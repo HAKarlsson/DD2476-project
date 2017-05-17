@@ -1,0 +1,18 @@
+{
+  "template": {
+    "size": 0,
+    "query": {
+      "match": {
+        "day": "{{day}}"
+      }
+    },
+    "aggs": {
+      "sessions": {
+        "terms": {
+          "field": "session",
+          "size": 4000000
+        }
+      }
+    }
+  }
+}

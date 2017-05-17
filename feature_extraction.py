@@ -9,6 +9,8 @@
 
 from elasticsearch import Elasticsearch
 from pprint import pprint
+from os import listdir
+from os.path import isfile, join
 import numpy as np
 import json
 import sys
@@ -27,27 +29,10 @@ def get_session(day):
     Get sessions from a specific day, this function can take a while.
     We should probably save the data from this into a file and then read from the file
     """
-    query = \
-        {
-            "size": 0,
-            "query": {
-                "match": {
-                    "day": day
-                }
-            },
-            "aggs": {
-                "sessions": {
-                    "terms": {
-                        "field": "session",
-                        "size": 4000000
-                    }
-                }
-            }
-        }
-    buckets = es.search(index=es_index, doc_type='serp', body=query,
-                        filter_path=['**.key', '**.doc_count'])['aggregations']['sessions']['buckets']
-    
+    page = template_query(id="day2sessions",
+                             params={"day": day})
     # returns list of (session_id, number of serps in session)
+    buckets = page['aggregations']['sessions']['buckets']
     return [(b['key'], b['doc_count']) for b in buckets]
 
 
@@ -55,21 +40,7 @@ def get_serp(session_id):
     """
     Get serps for a batch of sessions
     """
-    query = \
-        {
-            "size": 300,
-            "sort": [
-                {"serpId": "asc"}
-            ],
-            "query": {
-                "match": {
-                    "session": session_id
-                }
-            }
-        }
-
-    res = es.search(index=es_index, doc_type='serp',
-                    body=query, filter_path=['**._source'])
+    res = template_query(id="session2serps", params={"session_id": session_id})
     serps = [r['_source'] for r in res['hits']['hits']]
     return serps
 
@@ -79,8 +50,8 @@ def get_features(serps):
     Extracted features are:
       0. Unpersonalized rank
       1. Unpersonalized rank scaled with exp
-      2. Avg number of clicks for the same query in same session
-      3. Avg relevance of all clicks for the same query in same session
+      2. Total number of clicks for the same query in same session
+      3. Total relevance of all clicks for the same query in same session
       4. Avg clicks in same session same site
       5. Avg relevance in same session same site
       6. Avg displayed in same session same site
@@ -94,14 +65,15 @@ def get_features(serps):
     num_features = 10
     features = np.zeros((10, num_features))
     query = serps[-1]["query"]
+    user = serps[-1]['user']
+    day = serps[-1]['day']
 
     for pos, doc in enumerate(label_docs):
         site = doc['site']
         domain = doc['domain']
         features[pos, 0] = pos
         features[pos, 1] = np.exp(-pos)
-        
-        
+
         for serp in session_history:
             if serp["query"] == query:
                 doc = serp["documents"][pos]
@@ -117,8 +89,7 @@ def get_features(serps):
                     features[pos, 7] += doc['clicks'] / len(serps)
                     features[pos, 8] += doc['relevance'] / len(serps)
                     features[pos, 9] += 1 / len(serps)
-        
-        
+
     return features
 
 
@@ -144,18 +115,21 @@ def dump2ranklib_file(qid, labels, info, features):
     print(output, end='')
 
 
-def template_query():
-    with open("search_templates/temp.mustache") as f:
-        body = json.load(f)
-
-    es.put_template(id="temp", body=body)
+def template_query(id, params):
+    pprint(es.get_template(id=id))
     res = es.search_template(index=es_index, body={
-        "inline": es.get_template(id="temp")["template"],
-        "params": {
-            "day": 5,
-            "user": 10
-        }})
+        "inline": es.get_template(id=id)["template"],
+        "params": params})
     return res
+
+
+def put_templates():
+    for file_name in listdir("search_templates"):
+        part_path = join("search_templates", file_name)
+        file_name_no_ext = file_name.split(".")[0]
+        with open(part_path) as f:
+            body = json.load(f)
+            es.put_template(id=file_name_no_ext, body=body)
 
 
 def log_info(start_time, sessions_processed):
@@ -172,8 +146,6 @@ Create dictionaries for session
 fill dictionaries with serp
 session -> serp
 """
-
-
 
 if len(sys.argv) < 2:
     logging.error("""
@@ -193,6 +165,9 @@ if len(sys.argv) > 2 and sys.argv[2] == 'test':
 
 # Create an elasticsearch client
 es = Elasticsearch(timeout=3600)
+# load templates to node
+put_templates()
+
 es_index = 'yandex'
 sessions_processed = 0
 start_time = time.time()
@@ -208,19 +183,3 @@ for day in range(start, end + 1):
             dump2ranklib_file(session_id, labels, info, features)
         sessions_processed += 1
         log_info(start_time, sessions_processed)
-
-
-"""
-days [1-24] -> history dataset
-days [25-27] -> training set
-days [28-30] -> test set
-
-session 0
-serp0
-serp1
-session 1 history
-serp0
-serp1
-serp2
-serp3 <- for prediction 
-"""

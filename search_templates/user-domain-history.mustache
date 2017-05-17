@@ -1,0 +1,65 @@
+{
+  "template": {
+    "size": 100,
+    "sort": [
+      {
+        "day": "desc"
+      },
+      {
+        "serpId": "asc"
+      }
+    ],
+    "query": {
+      "bool": {
+        "must": [
+          {
+            "match": {
+              "user": "{{user}}"
+            }
+          },
+          {
+            "nested": {
+              "path": "documents",
+              "query": {
+                "match": {
+                  "documents.domain": "{{domain}}"
+                }
+              }
+            }
+          },
+          {
+            "range": {
+              "day": {
+                "lt": "{{day}}"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "aggs": {
+      "domain": {
+        "nested": {
+          "path": "documents"
+        },
+        "aggs": {
+          "domain-relevance": {
+            "extended_stats": {
+              "field": "documents.relevance"
+            }
+          },
+          "domain-position": {
+            "extended_stats": {
+              "field": "documents.position"
+            }
+          },
+          "domain-clicks": {
+            "extended_stats": {
+              "field": "documents.clicks"
+            }
+          }
+        }
+      }
+    }
+  }
+}
