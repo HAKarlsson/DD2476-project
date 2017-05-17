@@ -117,19 +117,21 @@ def dump2ranklib_file(qid, labels, info, features):
 
 def template_query(id, params):
     res = es.search_template(index=es_index, body={
-        "inline": es.get_template(id=id)["template"],
+        "inline": templates[id],
         "params": params})
     return res
 
 
-def put_templates():
+def get_templates():
+    templates = dict()
     for file_name in listdir("search_templates"):
         part_path = join("search_templates", file_name)
-        file_name_no_ext = file_name.split(".")[0]
+        file_no_ext = file_name.split(".")[0]
         with open(part_path) as f:
             body = json.load(f)
-            es.put_template(id=file_name_no_ext, body=body)
-
+            es.put_template(id=file_no_ext, body=body)
+        templates[file_no_ext] = es.get_template(id=file_no_ext)["template"]
+    return templates
 
 def log_info(start_time, sessions_processed):
     # print indexing information
@@ -165,7 +167,7 @@ if len(sys.argv) > 2 and sys.argv[2] == 'test':
 # Create an elasticsearch client
 es = Elasticsearch(timeout=3600)
 # load templates to node
-put_templates()
+templates = get_templates()
 
 es_index = 'yandex'
 sessions_processed = 0
