@@ -40,7 +40,7 @@ def get_serp(session_id, es):
     Get serps for a batch of sessions
     """
     res = template_query(es, id="session2serps", params={
-                         "session_id": session_id})
+                         "session_id": session_id}, routing=session_id)
     serps = [r['_source'] for r in res['hits']['hits']]
     return serps
 
@@ -154,7 +154,7 @@ def dump2ranklib(labels, info, features, session_id):
 
 def template_query(es, id, params, routing=None):
     res = es.search_template(index=es_index, 
-        routing=None,
+        routing=routing,
         body={
         "inline": templates[id],
         "params": params})
