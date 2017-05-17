@@ -116,7 +116,6 @@ def dump2ranklib_file(qid, labels, info, features):
 
 
 def template_query(id, params):
-    pprint(es.get_template(id=id))
     res = es.search_template(index=es_index, body={
         "inline": es.get_template(id=id)["template"],
         "params": params})

@@ -11,3 +11,4 @@ dataset
 bin
 models
 feature_extraction/*.rkb
+*.jar
