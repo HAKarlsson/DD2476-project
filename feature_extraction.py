@@ -101,6 +101,7 @@ def get_features(serps):
         features[pos, 0] = pos
         features[pos, 1] = np.exp(-pos)
         
+        
         for serp in session_history:
             if serp["query"] == query:
                 doc = serp["documents"][pos]
@@ -117,6 +118,7 @@ def get_features(serps):
                     features[pos, 8] += doc['relevance'] / len(serps)
                     features[pos, 9] += 1 / len(serps)
         
+        
     return features
 
 
@@ -125,18 +127,20 @@ def get_labels(serp):
     Get the relevance labels from the serp
     """
     labels = []
+    info = []
     for doc in serp['documents']:
         labels.append(doc['relevance'])
-    return labels
+        info.append(doc['site'])
+    return labels, info
 
 
-def dump2ranklib_file(qid, labels, features):
+def dump2ranklib_file(qid, labels, info, features):
     output = ""
     for pos in range(10):
         output += "%d qid:%d" % (labels[pos], qid)
         for num, feature in enumerate(features[pos, :]):
             output += " %d:%.3f" % (num, feature)
-        output += "\n"
+        output += " # %d\n" % info[pos]
     print(output, end='')
 
 
@@ -169,6 +173,8 @@ fill dictionaries with serp
 session -> serp
 """
 
+
+
 if len(sys.argv) < 2:
     logging.error("""
         You have to provide it with day argument like
@@ -181,28 +187,29 @@ day_range = sys.argv[1].split(':')
 start = int(day_range[0])
 end = start if len(day_range) == 1 else int(day_range[1])
 
+isTest = False
+if len(sys.argv) > 2 and sys.argv[2] == 'test':
+    isTest = True
 
 # Create an elasticsearch client
 es = Elasticsearch(timeout=3600)
 es_index = 'yandex'
 sessions_processed = 0
-qid = 0
 start_time = time.time()
 for day in range(start, end + 1):
     sessions = get_session(day)
     sessions_processed = 0
     start_time = time.time()
     for (session_id, serp_count) in sessions:
-        if(serp_count > 1):
-            serps = get_serp(session_id)
-            labels = get_labels(serps[-1])
-            if np.sum(labels) == 0:
-                continue
+        serps = get_serp(session_id)
+        labels, info = get_labels(serps[-1])
+        if np.sum(labels) > 0 or isTest:
             features = get_features(serps)
-            dump2ranklib_file(qid, labels, features)
-            qid += 1
+            dump2ranklib_file(session_id, labels, info, features)
         sessions_processed += 1
         log_info(start_time, sessions_processed)
+
+
 """
 days [1-24] -> history dataset
 days [25-27] -> training set
