@@ -35,17 +35,13 @@ def dwell2relevance(dwell_time):
 
 
 def insert_documents(es):
-    global actions, session_serp, clicks_info
     """
         Insert all the documents that has been recorded
     """
     for cur, nex in zip(actions[:-1], actions[1:]):
         if cur[1] == 'Q':
             continue
-        dwell_time = nex[0] - cur[0]
-        if dwell_time < 0:
-            print("Negative dwell time")
-
+        dwell_time = nex[0] - cur[0] + 1
         # handling multiple clicks on the same link
         serp, site = cur[2], cur[3]
         new_relevance = dwell2relevance(dwell_time)
@@ -53,7 +49,7 @@ def insert_documents(es):
         if new_relevance > cur_relevance:
             clicks_info[serp][site][2] = new_relevance
 
-    for action in actions[::-1]:
+    for action in reversed(actions[::-1]):
         if action[1] == 'C':
             serp, site = action[2], action[3]
             clicks_info[serp][site][2] = 2
@@ -62,8 +58,7 @@ def insert_documents(es):
     for serp in clicks_info.keys():
         documents = [None] * 10
         for site, site_info in clicks_info[serp].items():
-            pos, domain = site_info[0:2]
-            relevance, clicks = site_info[2:]
+            pos, domain, relevance, clicks = site_info
             documents[pos] = {
                 "site": site,
                 "domain": domain,
@@ -72,18 +67,18 @@ def insert_documents(es):
                 "position": pos
             }
         session_serp[serp]['documents'] = documents
-
-    actions, session_serp = [], []
-    clicks_info = dict()
+    del actions[:]
+    del session_serp[:]
+    clicks_info.clear()
 
 
 def handle_query(es, record, session):
-    global session_serp, serps, clicks_info
     """
         Handle a query record
     """
     time_passed = int(record[1])
-    serp, query_id = map(int, record[3:5])
+    serp = int(record[3])
+    query_id = record[4]
     query = record[5].replace(',', ' ')
     clicks_info[serp] = dict()
     is_test = (record[2] == 'T')
@@ -99,39 +94,35 @@ def handle_query(es, record, session):
     })
     session_serp.append(serps[-1])
     actions.append((time_passed, 'Q'))
-
     site_domain = [item.split(',') for item in record[6:]]
     for pos, (site, domain) in enumerate(site_domain):
         # 2nd - relevance, 3rd - number of clicks
-        clicks_info[serp][int(site)] = [pos, int(domain), 0, 0]
+        clicks_info[serp][site] = [pos, domain, 0, 0]
 
 
 def handle_session(es, record):
-    global user, day
     """
         Handle a session record
     """
-    session_id = int(record[0])
-    day, user_id = map(int, record[2:])
+    session_id = record[0]
+    day, user_id = record[2:]
     return (session_id, day, user_id)
 
 def handle_click(es, record):
-    global actions, clicks_info
     """
         Handle a click record
     """
     time_passed = int(record[1])
-    serp, site = map(int, record[3:])
-
+    serp = int(record[3])
+    site = record[4]
     clicks_info[serp][site][3] += 1
     actions.append((time_passed, 'C', serp, site))
 
 
 def insert_all(es):
-    global serps
     # insert all the records into elasticsearch
     deque(helpers.parallel_bulk(es, serps, chunk_size=5000), maxlen=0)
-    serps = []
+    del serps[:]
 
 
 def log_info(start_time, lines_read, file_path):
@@ -151,10 +142,8 @@ def read_file(file_path):
     session = None
     with open(file_path) as f:
         for line in f:
-
             # process the line
-            record = line.strip().split('\t')
-
+            record = line.rstrip().split('\t')
             if record[1] == 'M':
                 # Handle old session
                 insert_documents(es)
@@ -163,18 +152,14 @@ def read_file(file_path):
                     insert_all(es)
                     log_info(start_time, lines_read, file_path)
                     lines_in_record = 0
-
                 # new session
                 session = handle_session(es, record)
-
             elif record[2] == 'Q' or record[2] == 'T':
                 # new query
                 handle_query(es, record, session)
-
             elif record[2] == 'C':
                 # new click
                 handle_click(es, record)
-
             lines_read += 1
             lines_in_record += 1
     insert_documents(es)
