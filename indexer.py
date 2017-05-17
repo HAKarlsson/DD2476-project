@@ -209,7 +209,7 @@ if dataset_path == None:
     print("You have to specify dataset location '--dataset [path to dataset]'. ")
 
 
-es_index = 'yandex2'   # set the elasticsearch index
+es_index = 'yandex'   # set the elasticsearch index
 if not keep_index:
     with open('mapping.json') as f:
         if es.indices.exists(index=es_index):
