@@ -152,8 +152,10 @@ def dump2ranklib(labels, info, features, session_id):
     return output
 
 
-def template_query(es, id, params):
-    res = es.search_template(index=es_index, body={
+def template_query(es, id, params, routing=None):
+    res = es.search_template(index=es_index, 
+        routing=None,
+        body={
         "inline": templates[id],
         "params": params})
     return res

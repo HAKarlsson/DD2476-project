@@ -78,11 +78,11 @@ def handle_query(es, record, session):
     """
     time_passed = int(record[1])
     serp = int(record[3])
-    query_id = record[4]
     query = record[5].replace(',', ' ')
     clicks_info[serp] = dict()
     is_test = (record[2] == 'T')
     serps.append({
+        "_routing": session[0],
         "_type": "serp",
         "_index": es_index,
         'serpId': serp,
@@ -97,15 +97,15 @@ def handle_query(es, record, session):
     site_domain = [item.split(',') for item in record[6:]]
     for pos, (site, domain) in enumerate(site_domain):
         # 2nd - relevance, 3rd - number of clicks
-        clicks_info[serp][site] = [pos, domain, 0, 0]
+        clicks_info[serp][int(site)] = [pos, int(domain), 0, 0]
 
 
 def handle_session(es, record):
     """
         Handle a session record
     """
-    session_id = record[0]
-    day, user_id = record[2:]
+    session_id = int(record[0])
+    day, user_id = map(int,record[2:])
     return (session_id, day, user_id)
 
 def handle_click(es, record):
@@ -114,7 +114,7 @@ def handle_click(es, record):
     """
     time_passed = int(record[1])
     serp = int(record[3])
-    site = record[4]
+    site = int(record[4])
     clicks_info[serp][site][3] += 1
     actions.append((time_passed, 'C', serp, site))
 
