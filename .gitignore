@@ -10,5 +10,5 @@
 dataset
 bin
 models
-feature_extraction/*.rkb
+*.rkb
 *.jar
