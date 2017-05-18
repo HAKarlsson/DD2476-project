@@ -83,7 +83,7 @@ def get_features(es, serps):
 
     user_full_history = template_query(es, id='user-history',
                                        params={"day1": days[0],
-                                               "day2": (days[0]-10),
+                                               "day2": 0,
                                                "user": user,
                                                "query": query}
                                        )['hits']['hits']
