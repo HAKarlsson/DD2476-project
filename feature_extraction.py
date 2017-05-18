@@ -212,14 +212,7 @@ def log_info():
 
 def producer(output_queue, session_queue):
     es = Elasticsearch(timeout=3600)
-    while True:,
-		{
-			"aggs": {
-				"nested": {
-					"path":"documents.relevance"
-				}
-			}
-		}
+    while True:
         try:
             item = session_queue.get()
             if item is None:
