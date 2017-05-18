@@ -49,28 +49,32 @@ def get_serp(session_id, es):
 def get_features(es, serps):
     """
     Extracted features are:
-      0. Unpersonalized rank
-      1. Unpersonalized rank scaled with exp
+      1. Unpersonalized rank
+      2. Unpersonalized rank scaled with exp
 
-      2. Same query, same session: Avg clicks
-      3. Same query, same session: Avg relevance
+      3. Same query, same session: Avg clicks
+      4. Same query, same session: Avg relevance
 
-      4. Same session, same site: Avg clicks
-      5. Same session, same site: Avg relevance
+      5. Same session, same site: Avg clicks
+      6. Same session, same site: Avg relevance
 
-      6. Same session, same domain: Avg clicks
-      7. Same session, same domain: Avg relevance
+      7. Same session, same domain: Avg clicks
+      8. Same session, same domain: Avg relevance
 
-      8. User history, same site, similar query: Avg clicks
-      9. User history, same site, similar query: Avg relevance
+      9. User history, same site, similar query: Avg clicks
+      10. User history, same site, similar query: Avg relevance
 
-      10. User history, same domain, similar query: Avg clicks
-      11. User history, same domain, similar query: Avg relevance
+      11. User history, same domain, similar query: Avg clicks
+      12. User history, same domain, similar query: Avg relevance
+
+      13. User history, same site, similar query: Avg clicks
+      14. User history, same site, similar query: Avg relevance
+      15. User history, same domain, similar query: Avg clicks
 
       hit/miss/skip? (see dataiku sec 4.2.2)
     """
     label_docs = serps[-1]["documents"]
-    session_history = [serp for serp in serps[:-1]]
+    session_history = serps[:-1]
     num_features = 20
     features = np.zeros((10, num_features))
     query = serps[-1]["query"]
@@ -144,7 +148,6 @@ def get_features(es, serps):
 
     return features
 
-
 def get_labels(serp):
     """
     Get the relevance labels from the serp
@@ -156,7 +159,8 @@ def get_labels(serp):
         info.append(doc['site'])
     return labels, info
 
-
+    features[:, 12] = clicks
+    features[:, 13] = amount_of_history
 def dump2ranklib(labels, info, features, session_id):
     output = ""
     for pos in range(10):
@@ -169,12 +173,12 @@ def dump2ranklib(labels, info, features, session_id):
 
 def template_query(es, id, params, routing=None):
     if routing == None:
-        res = es.search_template(index=es_index, 
+        res = es.search_template(index=es_index,
             body={
             "inline": templates[id],
             "params": params})
-    else: 
-        res = es.search_template(index=es_index, 
+    else:
+        res = es.search_template(index=es_index,
             routing=routing,
             body={
             "inline": templates[id],
@@ -208,7 +212,14 @@ def log_info():
 
 def producer(output_queue, session_queue):
     es = Elasticsearch(timeout=3600)
-    while True:
+    while True:,
+		{
+			"aggs": {
+				"nested": {
+					"path":"documents.relevance"
+				}
+			}
+		}
         try:
             item = session_queue.get()
             if item is None:

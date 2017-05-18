@@ -41,7 +41,7 @@ def insert_documents(es):
     for cur, nex in zip(actions[:-1], actions[1:]):
         if cur[1] == 'Q':
             continue
-        dwell_time = nex[0] - cur[0] + 1
+        dwell_time = nex[0] - cur[0]
         # handling multiple clicks on the same link
         serp, site = cur[2], cur[3]
         new_relevance = dwell2relevance(dwell_time)
