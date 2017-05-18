@@ -1,6 +1,6 @@
 {
   "template": {
-    "size": 100,
+    "size": 20,
     "sort": [
       {
         "day": "desc"
@@ -20,7 +20,8 @@
           {
             "range": {
               "day": {
-                "lt": "{{day}}"
+                "lt": "{{day1}}",
+                "gte": "{{day2}}"
               }
             }
           }, 

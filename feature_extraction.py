@@ -32,6 +32,7 @@ def get_session(es, day):
                           params={"day": day})
     # returns list of (session_id, number of serps in session)
     buckets = page['aggregations']['sessions']['buckets']
+    print("number of session for day %d: %d" % (day, len(buckets)))
     return [(b['key'], b['doc_count']) for b in buckets]
 
 
@@ -70,19 +71,28 @@ def get_features(es, serps):
     """
     label_docs = serps[-1]["documents"]
     session_history = [serp for serp in serps[:-1]]
-    num_features = 12
+    num_features = 20
     features = np.zeros((10, num_features))
     query = serps[-1]["query"]
     user = serps[-1]['user']
     day = serps[-1]['day']
 
     user_full_history = template_query(es, id='user-history',
-                                       params={"day": days[0],
+                                       params={"day1": days[0],
+                                               "day2": (days[0]-10),
                                                "user": user,
                                                "query": query}
                                        )['hits']['hits']
     user_full_history = [serp["_source"] for serp in user_full_history]
 
+    clicks = 0
+    for serp in user_full_history + session_history:
+        for doc in serp["documents"]:
+            clicks += doc['clicks']
+    amount_of_history = len(user_full_history + session_history)
+    features[:, 12] = clicks
+    features[:, 13] = amount_of_history
+    features[:, 14] = clicks / (amount_of_history+1)
 
     for pos, doc in enumerate(label_docs):
         site = doc['site']
@@ -96,15 +106,18 @@ def get_features(es, serps):
         for serp in session_history:
             if serp["query"] == query:
                 doc = serp["documents"][pos]
+                features[pos, 15] += doc["clicks"]
                 features[pos, 2] += doc["clicks"]
                 features[pos, 3] += doc["relevance"]
 
             for doc in serp["documents"]:
                 if doc['site'] == site:
+                    features[pos, 16] += doc["clicks"]
                     features[pos, 4] += doc['clicks']
                     features[pos, 5] += doc['relevance']
                     site_shown_session += 1
                 if doc['domain'] == domain:
+                    features[pos, 17] += doc["clicks"]
                     features[pos, 6] += doc['clicks']
                     features[pos, 7] += doc['relevance']
                     domain_shown_session += 1
@@ -113,11 +126,13 @@ def get_features(es, serps):
         for serp in user_full_history:
             for doc2 in serp["documents"]:
                 if doc2['site'] == site:
+                    features[pos, 18] += doc["clicks"]
                     features[pos, 8] += doc2['clicks']
                     features[pos, 9] += doc2['relevance']
                     site_shown_history += 1
 
                 if doc2['domain'] == domain:
+                    features[pos, 19] += doc["clicks"]
                     features[pos, 10] += doc2['clicks']
                     features[pos, 11] += doc2['relevance']
                     domain_shown_history += 1
@@ -125,7 +140,7 @@ def get_features(es, serps):
         features[pos, 8:10] /= site_shown_history
         features[pos, 10:12] /= domain_shown_history
 
-    features[pos,2:4] /= len(serps)
+        features[pos,2:4] /= len(serps)
 
     return features
 
@@ -147,17 +162,23 @@ def dump2ranklib(labels, info, features, session_id):
     for pos in range(10):
         output += "%d qid:%d" % (labels[pos], session_id)
         for num, feature in enumerate(features[pos, :]):
-            output += " %d:%.3f" % (num + 1, feature)
+            output += (" %d:%.2f" % (num + 1, feature)).rstrip('0').rstrip('.')
         output += " # %d\n" % info[pos]
     return output
 
 
 def template_query(es, id, params, routing=None):
-    res = es.search_template(index=es_index, 
-        routing=routing,
-        body={
-        "inline": templates[id],
-        "params": params})
+    if routing == None:
+        res = es.search_template(index=es_index, 
+            body={
+            "inline": templates[id],
+            "params": params})
+    else: 
+        res = es.search_template(index=es_index, 
+            routing=routing,
+            body={
+            "inline": templates[id],
+            "params": params})
     return res
 
 
@@ -290,7 +311,6 @@ for day in range(days[0], days[1] + 1):
     sessions = get_session(es, day)
     for (session_id, serp_count) in sessions:
         session_queue.put(session_id)
-
 for i in range(len(jobs)):
     session_queue.put(None)
 
